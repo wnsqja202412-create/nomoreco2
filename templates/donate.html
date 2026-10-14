@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}후원하기{% endblock %}
+{% block content %}
+<section class="page-hero page-hero-donate">
+  <div class="container">
+    <p class="eyebrow">DONATE</p>
+    <h1>지구를 위한 가장 확실한 행동, 후원</h1>
+    <p>NomoreCO2는 정부·기업의 돈을 받지 않아요. 오직 여러분의 후원으로 이산화탄소를 줄이는 활동을 합니다.</p>
+    <a class="btn btn-donate btn-lg" href="#donate-form">후원 신청하러 가기 ↓</a>
+  </div>
+</section>
+
+<!-- 1. 후원 종류 -->
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">후원 종류</h2>
+    <p class="section-lead">나에게 맞는 방법으로 함께해 주세요.</p>
+    <div class="pillars">
+      <div class="pillar pillar-highlight">
+        <span class="pillar-icon">🔁</span><h3>정기후원 <small class="badge badge-open">추천</small></h3>
+        <p>매달 정해진 금액을 후원해요. 꾸준한 후원 덕분에 1년 계획을 세우고 오래 활동할 수 있어요.</p>
+      </div>
+      <div class="pillar">
+        <span class="pillar-icon">🎁</span><h3>일시후원</h3>
+        <p>원할 때 한 번 후원해요. 특별한 캠페인이나 긴급한 활동에 큰 힘이 돼요.</p>
+      </div>
+      <div class="pillar">
+        <span class="pillar-icon">🎂</span><h3>기념일후원</h3>
+        <p>생일, 졸업, 지구의 날 같은 특별한 날을 지구를 위한 후원으로 기념해요.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. 금액별 효과 -->
+<section class="section section-soft">
+  <div class="container">
+    <h2 class="section-title">내 후원금은 이렇게 쓰여요</h2>
+    <p class="section-lead">(예시) 후원 금액마다 할 수 있는 일이에요.</p>
+    <div class="impact">
+      {% for value, text in amounts %}
+        <div class="impact-item"><strong>{{ value|won }}</strong><p>{{ text }}</p></div>
+      {% endfor %}
+    </div>
+
+    <h3 class="sub-title">후원금 사용 비율 (예시)</h3>
+    <div class="usage">
+      <div class="usage-row"><span>📢 기후 캠페인</span><div class="bar"><i style="width:40%"></i></div><b>40%</b></div>
+      <div class="usage-row"><span>🌳 나무 심기·현장활동</span><div class="bar"><i style="width:30%"></i></div><b>30%</b></div>
+      <div class="usage-row"><span>📚 기후 교육</span><div class="bar"><i style="width:20%"></i></div><b>20%</b></div>
+      <div class="usage-row"><span>🏠 단체 운영</span><div class="bar"><i style="width:10%"></i></div><b>10%</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. 후원 절차 -->
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">후원은 이렇게 해요</h2>
+    <ol class="steps">
+      <li><b>1</b><span>후원 종류 고르기</span><small>정기 · 일시 · 기념일</small></li>
+      <li><b>2</b><span>금액 정하기</span><small>추천 금액 또는 직접 입력</small></li>
+      <li><b>3</b><span>결제 방법 고르기</span><small>자동이체 · 카드 · 계좌이체 · 휴대폰</small></li>
+      <li><b>4</b><span>신청서 쓰기</span><small>이름과 연락처</small></li>
+      <li><b>5</b><span>감사 연락 받기</span><small>활동 소식을 보내 드려요</small></li>
+    </ol>
+
+    <div class="methods">
+      <div class="method"><h4>🏦 CMS 자동이체</h4><p>정기후원에 가장 편리해요. 매달 정한 날짜에 통장에서 자동으로 후원돼요.</p></div>
+      <div class="method"><h4>💳 신용카드</h4><p>정기·일시후원 모두 가능해요. 매달 카드로 자동 결제돼요.</p></div>
+      <div class="method"><h4>📄 계좌이체</h4><p>일시후원할 때 아래 계좌로 직접 보내요.<br><b>{{ site.bank_info }}</b></p></div>
+      <div class="method"><h4>📱 휴대폰 결제</h4><p>일시후원을 휴대폰 요금과 함께 낼 수 있어요.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. 후원 신청서 -->
+<section class="section section-soft" id="donate-form">
+  <div class="container narrow">
+    <h2 class="section-title">후원 신청서</h2>
+    <p class="notice-box">⚠️ 학교 과제용 사이트라서 <b>실제 결제는 되지 않아요.</b> 신청서만 저장되고, 관리자가 확인해요.</p>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+    <form method="post" action="/donate#donate-form" class="form">
+      <fieldset>
+        <legend>후원 종류</legend>
+        <div class="choice-row">
+          {% for t in types %}
+            <label class="choice"><input type="radio" name="donation_type" value="{{ t }}" required
+              {{ 'checked' if form.get('donation_type', '정기후원') == t }}><span>{{ t }}</span></label>
+          {% endfor %}
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>후원 금액</legend>
+        <div class="choice-row">
+          {% for value, _ in amounts %}
+            <label class="choice"><input type="radio" name="amount" value="{{ value }}"
+              {{ 'checked' if form.get('amount', '10000') == value|string }}><span>{{ value|won }}</span></label>
+          {% endfor %}
+        </div>
+        <label class="field">직접 입력 (원)
+          <input type="number" name="custom_amount" min="1000" step="1000" placeholder="예: 15000" value="{{ form.get('custom_amount', '') }}">
+        </label>
+      </fieldset>
+
+      <label class="field">결제 방법
+        <select name="method" required>
+          {% for m in methods %}<option {{ 'selected' if form.get('method') == m }}>{{ m }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="field">이름
+        <input name="donor_name" required maxlength="50" value="{{ form.get('donor_name', user.name if user else '') }}">
+      </label>
+      <label class="field">연락처 (이메일 또는 전화번호)
+        <input name="contact" required maxlength="100" value="{{ form.get('contact', '') }}">
+      </label>
+      <label class="field">응원 한마디 (선택)
+        <textarea name="message" rows="3" maxlength="500">{{ form.get('message', '') }}</textarea>
+      </label>
+      <label class="check"><input type="checkbox" name="agree" value="1" required>
+        후원 안내를 위해 이름과 연락처를 저장하는 데 동의해요. (14세 미만은 보호자와 함께 신청해 주세요)</label>
+      <button class="btn btn-donate btn-lg btn-block">후원 신청하기</button>
+    </form>
+  </div>
+</section>
+
+<!-- 5. 자주 묻는 질문 -->
+<section class="section">
+  <div class="container narrow">
+    <h2 class="section-title">자주 묻는 질문</h2>
+    <details class="faq"><summary>정기후원은 언제든지 그만하거나 금액을 바꿀 수 있나요?</summary>
+      <p>네! {{ site.contact_email }} 로 연락 주시면 언제든지 바꾸거나 멈출 수 있어요.</p></details>
+    <details class="faq"><summary>기부금 영수증을 받을 수 있나요?</summary>
+      <p>실제 비영리단체로 등록된 곳은 연말정산용 기부금 영수증을 발급해요. NomoreCO2는 과제용 가상 단체라 발급하지 않아요.</p></details>
+    <details class="faq"><summary>후원금이 어디에 쓰였는지 알 수 있나요?</summary>
+      <p>매년 활동 보고서를 '우리가 하는 일' 게시판에 올려 투명하게 공개할 거예요.</p></details>
+    <details class="faq"><summary>어린이도 후원할 수 있나요?</summary>
+      <p>용돈으로 하는 작은 후원도 큰 힘이 돼요! 꼭 보호자와 함께 신청해 주세요. 돈이 아니어도 <a href="/join">자원봉사</a>로 함께할 수 있어요.</p></details>
+  </div>
+</section>
+{% endblock %}

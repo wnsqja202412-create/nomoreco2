@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ post.title }}{% endblock %}
+{% block content %}
+<article class="section">
+  <div class="container narrow">
+    <a class="more" href="/activities">← 목록으로</a>
+    <p class="post-meta"><span class="tag">{{ CATEGORY_EMOJI.get(post.category, '🌍') }} {{ post.category }}</span> <time>{{ post.created_at|datefmt }}</time></p>
+    <h1 class="post-title">{{ post.title }}</h1>
+    {% if post.summary %}<p class="lead">{{ post.summary }}</p>{% endif %}
+    {% if post.image_url %}<img class="post-image" src="{{ post.image_url }}" alt="{{ post.title }}">{% endif %}
+    <div class="post-content">{{ post.content|nl2br }}</div>
+
+    {% if has_perm(user, 'content_edit') %}
+      <div class="admin-actions">
+        <a class="btn btn-primary" href="/admin/posts/{{ post.id }}/edit">수정하기</a>
+        <form method="post" action="/admin/posts/{{ post.id }}/delete" class="inline"
+              onsubmit="return confirm('정말 지울까요?')">
+          <button class="btn btn-danger">삭제하기</button>
+        </form>
+      </div>
+    {% endif %}
+
+    <div class="post-cta">
+      <p>이 활동이 마음에 들었다면, NomoreCO2와 함께해 주세요!</p>
+      <a class="btn btn-donate" href="/donate">후원하기</a>
+      <a class="btn btn-outline" href="/join">함께하기</a>
+    </div>
+  </div>
+</article>
+{% endblock %}

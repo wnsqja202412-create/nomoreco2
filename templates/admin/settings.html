@@ -1,0 +1,18 @@
+{% extends "admin/layout.html" %}
+{% block title %}사이트 문구 설정{% endblock %}
+{% block admin %}
+<h1>사이트 문구 설정</h1>
+<p class="muted">메인 화면 제목, 후원 계좌, 연락처 같은 문구를 여기서 바꿀 수 있어요.</p>
+<form method="post" class="form">
+  {% for key, label, _default, multiline in fields %}
+    <label class="field">{{ label }}
+      {% if multiline %}
+        <textarea name="{{ key }}" rows="4">{{ values[key] }}</textarea>
+      {% else %}
+        <input name="{{ key }}" value="{{ values[key] }}">
+      {% endif %}
+    </label>
+  {% endfor %}
+  <button class="btn btn-primary">저장하기</button>
+</form>
+{% endblock %}

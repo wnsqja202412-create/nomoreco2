@@ -1,0 +1,30 @@
+{% extends "admin/layout.html" %}
+{% block title %}후원 신청 확인{% endblock %}
+{% block admin %}
+<h1>후원 신청 확인</h1>
+<div class="stat-tiles">
+  <div><b>{{ total|won }}</b><span>전체 ({{ items|length }}건)</span></div>
+  {% for t, count, amount in by_type %}
+    <div><b>{{ amount|won }}</b><span>{{ t }} ({{ count }}건)</span></div>
+  {% endfor %}
+</div>
+<div class="table-wrap"><table class="table">
+  <tr><th>날짜</th><th>이름</th><th>연락처</th><th>종류</th><th>금액</th><th>방법</th><th>응원 한마디</th><th></th></tr>
+  {% for d in items %}
+    <tr>
+      <td>{{ d.created_at|datefmt }}</td>
+      <td>{{ d.donor_name }}</td>
+      <td>{{ d.contact }}</td>
+      <td>{{ d.donation_type }}</td>
+      <td>{{ d.amount|won }}</td>
+      <td>{{ d.method }}</td>
+      <td class="wrap">{{ d.message|nl2br }}</td>
+      <td>
+        <form method="post" action="/admin/donations/{{ d.id }}/delete" class="inline" onsubmit="return confirm('정말 지울까요?')">
+          <button class="btn btn-sm btn-danger">삭제</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}<tr><td colspan="8" class="muted">아직 후원 신청이 없어요</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

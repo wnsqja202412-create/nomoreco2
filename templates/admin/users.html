@@ -1,0 +1,42 @@
+{% extends "admin/layout.html" %}
+{% block title %}회원·권한 관리{% endblock %}
+{% block admin %}
+<h1>회원·권한 관리</h1>
+
+<h2 class="sub-title">권한표</h2>
+<div class="table-wrap"><table class="table">
+  <tr><th>역할</th><th>할 수 있는 일</th></tr>
+  {% for role in roles %}
+    <tr><td><b>{{ ROLE_LABELS.get(role, role) }}</b></td><td>{{ role_permissions[role]|sort|join(', ') }}</td></tr>
+  {% endfor %}
+</table></div>
+<p class="muted">view=보기 · apply=후원·지원 신청 · admin_access=관리자 페이지 · content_edit=글 쓰기·수정·삭제 · manage_users=회원 권한 관리</p>
+
+<h2 class="sub-title">회원 목록</h2>
+<div class="table-wrap"><table class="table">
+  <tr><th>아이디</th><th>이름</th><th>가입일</th><th>권한</th><th></th></tr>
+  {% for u in items %}
+    <tr>
+      <td><b>{{ u.username }}</b>{% if u.id == user.id %} (나){% endif %}</td>
+      <td>{{ u.name }}</td>
+      <td>{{ u.created_at|datefmt }}</td>
+      <td>
+        {% if u.id == user.id %}{{ ROLE_LABELS.get(u.role, u.role) }}{% else %}
+        <form method="post" action="/admin/users/{{ u.id }}/role" class="inline">
+          <select name="role" onchange="this.form.submit()">
+            {% for role in roles %}<option value="{{ role }}" {{ 'selected' if u.role == role }}>{{ ROLE_LABELS.get(role, role) }}</option>{% endfor %}
+          </select>
+        </form>
+        {% endif %}
+      </td>
+      <td>
+        {% if u.id != user.id %}
+        <form method="post" action="/admin/users/{{ u.id }}/delete" class="inline" onsubmit="return confirm('{{ u.username }} 회원을 정말 지울까요?')">
+          <button class="btn btn-sm btn-danger">삭제</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+</table></div>
+{% endblock %}

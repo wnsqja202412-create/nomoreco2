@@ -1,0 +1,19 @@
+{% macro post_card(p) %}
+<a class="card" href="/activities/{{ p.id }}">
+  {% if p.image_url %}
+    <div class="card-thumb" style="background-image:url('{{ p.image_url }}')"></div>
+  {% else %}
+    <div class="card-thumb thumb-{{ p.id % 4 }}"><span>{{ CATEGORY_EMOJI.get(p.category, '🌍') }}</span></div>
+  {% endif %}
+  <div class="card-body">
+    <span class="tag">{{ p.category }}</span>
+    <h3>{{ p.title }}</h3>
+    <p>{{ p.summary }}</p>
+    <time>{{ p.created_at|datefmt }}</time>
+  </div>
+</a>
+{% endmacro %}
+
+{% macro recruit_badge(r) %}
+  {% if r.is_open %}<span class="badge badge-open">모집 중</span>{% else %}<span class="badge badge-closed">마감</span>{% endif %}
+{% endmacro %}

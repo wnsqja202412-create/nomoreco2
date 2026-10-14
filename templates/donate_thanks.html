@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}후원 감사합니다{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="container narrow center">
+    <div class="big-emoji">💚🌍</div>
+    <h1>{{ donation.donor_name }}님, 고맙습니다!</h1>
+    <p class="lead">후원 신청이 잘 접수되었어요.</p>
+    <table class="summary-table">
+      <tr><th>후원 종류</th><td>{{ donation.donation_type }}</td></tr>
+      <tr><th>금액</th><td>{{ donation.amount|won }}{% if donation.donation_type == '정기후원' %} / 매달{% endif %}</td></tr>
+      <tr><th>결제 방법</th><td>{{ donation.method }}</td></tr>
+      <tr><th>신청일</th><td>{{ donation.created_at|datefmt }}</td></tr>
+    </table>
+    {% if donation.method == '계좌이체' %}<p class="notice-box">계좌 안내: <b>{{ site.bank_info }}</b></p>{% endif %}
+    <p class="muted">※ 학교 과제용 사이트라서 실제 결제는 이루어지지 않았어요.</p>
+    <a class="btn btn-primary" href="/activities">우리가 하는 일 보러 가기</a>
+  </div>
+</section>
+{% endblock %}

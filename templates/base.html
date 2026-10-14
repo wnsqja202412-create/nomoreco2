@@ -1,0 +1,62 @@
+{% set path = request.url.path %}
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}홈{% endblock %} | NomoreCO2</title>
+  <meta name="description" content="이산화탄소를 줄여 기후변화를 막는 청소년 환경 NGO, NomoreCO2">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="container header-inner">
+      <a class="logo" href="/">NomoreCO<sub>2</sub></a>
+      <input type="checkbox" id="nav-toggle" class="nav-toggle">
+      <label for="nav-toggle" class="nav-burger" aria-label="메뉴 열기">☰</label>
+      <nav class="nav">
+        <a href="/about" class="{{ 'active' if path.startswith('/about') }}">단체 소개</a>
+        <a href="/activities" class="{{ 'active' if path.startswith('/activities') }}">우리가 하는 일</a>
+        <a href="/join" class="{{ 'active' if path.startswith('/join') }}">함께하기</a>
+        {% if user %}
+          {% if has_perm(user, 'admin_access') %}
+            <a href="/admin" class="nav-admin {{ 'active' if path.startswith('/admin') }}">관리자</a>
+          {% endif %}
+          <a href="/mypage" class="{{ 'active' if path.startswith('/mypage') }}">{{ user.name }}님</a>
+          <form method="post" action="/logout" class="inline"><button class="linkbtn">로그아웃</button></form>
+        {% else %}
+          <a href="/login" class="{{ 'active' if path.startswith('/login') }}">로그인</a>
+        {% endif %}
+        <a class="btn btn-donate" href="/donate">후원하기</a>
+      </nav>
+    </div>
+  </header>
+
+  {% if flash %}<div class="container"><div class="flash">{{ flash }}</div></div>{% endif %}
+
+  <main>{% block content %}{% endblock %}</main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div>
+        <a class="logo logo-light" href="/">NomoreCO<sub>2</sub></a>
+        <p>이산화탄소를 줄여 기후변화를 막는 청소년 환경 NGO</p>
+        <p class="muted">{{ site.address }} · {{ site.contact_email }}</p>
+      </div>
+      <div class="footer-links">
+        <a href="/about">단체 소개</a>
+        <a href="/activities">우리가 하는 일</a>
+        <a href="/join">함께하기</a>
+        <a href="/donate">후원하기</a>
+      </div>
+    </div>
+    <div class="container footer-bottom">
+      <p>{{ site.notice }}</p>
+      <p>© NomoreCO2</p>
+    </div>
+  </footer>
+</body>
+</html>

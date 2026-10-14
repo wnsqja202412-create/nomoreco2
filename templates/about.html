@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}단체 소개{% endblock %}
+{% block content %}
+<section class="page-hero">
+  <div class="container">
+    <p class="eyebrow">ABOUT US</p>
+    <h1>No more CO₂ — 이제 이산화탄소는 그만!</h1>
+    <p>NomoreCO2는 기후변화를 막기 위해 모인 청소년 환경 단체예요.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container narrow">
+    <h2 class="section-title">우리의 미션</h2>
+    <p class="lead">{{ site.mission|nl2br }}</p>
+  </div>
+</section>
+
+<section class="section section-soft">
+  <div class="container narrow">
+    <h2 class="section-title">기후변화, 왜 이산화탄소가 문제일까요?</h2>
+    <div class="explain">
+      <div><span>🏭</span><p>석탄·석유를 태우면 <b>이산화탄소(CO₂)</b>가 나와요.</p></div>
+      <div><span>🌫️</span><p>이산화탄소는 지구를 감싸는 <b>이불</b>처럼 열을 가둬요.</p></div>
+      <div><span>🌡️</span><p>이불이 두꺼워질수록 <b>지구의 온도</b>가 올라가요.</p></div>
+      <div><span>🌊</span><p>폭염, 가뭄, 홍수, 빙하 녹음 같은 <b>기후위기</b>가 생겨요.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">우리의 약속</h2>
+    <div class="pillars">
+      <div class="pillar"><span class="pillar-icon">🤝</span><h3>독립성</h3><p>정부나 기업의 돈을 받지 않고, 시민의 후원만으로 활동해요. 그래서 누구의 눈치도 보지 않고 바른 목소리를 낼 수 있어요.</p></div>
+      <div class="pillar"><span class="pillar-icon">🕊️</span><h3>평화</h3><p>누구도 다치게 하지 않는 평화로운 방법으로만 행동해요.</p></div>
+      <div class="pillar"><span class="pillar-icon">🔍</span><h3>투명성</h3><p>후원금을 어디에 썼는지 모두에게 공개해요.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-soft">
+  <div class="container">
+    <h2 class="section-title">우리 팀</h2>
+    <div class="team">
+      <div class="member"><span>🧑‍🎓</span><b>대표</b><p>단체를 이끌고 활동 계획을 세워요</p></div>
+      <div class="member"><span>📢</span><b>캠페인팀</b><p>탄소 줄이기 캠페인을 기획해요</p></div>
+      <div class="member"><span>🌳</span><b>현장활동팀</b><p>나무 심기, 플로깅을 준비해요</p></div>
+      <div class="member"><span>📸</span><b>홍보팀</b><p>홈페이지와 소식지를 만들어요</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-band">
+  <div class="container cta-inner">
+    <div><h2>연락하기</h2><p>{{ site.contact_email }} · {{ site.address }}</p></div>
+    <a class="btn btn-donate btn-lg" href="/join">함께하기</a>
+  </div>
+</section>
+{% endblock %}

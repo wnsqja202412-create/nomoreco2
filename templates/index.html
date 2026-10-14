@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% from "_macros.html" import post_card, recruit_badge %}
+{% block title %}홈{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="container hero-inner">
+    <p class="eyebrow">기후위기 대응 청소년 NGO</p>
+    <h1>{{ site.hero_title }}</h1>
+    <p class="hero-sub">{{ site.hero_subtitle|nl2br }}</p>
+    <div class="hero-actions">
+      <a class="btn btn-donate btn-lg" href="/donate">지금 후원하기</a>
+      <a class="btn btn-ghost btn-lg" href="/join">함께 행동하기</a>
+    </div>
+  </div>
+</section>
+
+<section class="stats">
+  <div class="container stats-grid">
+    <div><strong>{{ stats.posts }}</strong><span>우리가 한 활동</span></div>
+    <div><strong>{{ stats.people }}</strong><span>함께하는 사람</span></div>
+    <div><strong>{{ stats.donations }}</strong><span>후원 신청</span></div>
+    <div><strong>420+<small>ppm</small></strong><span>지금 공기 속 CO₂ 농도</span></div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">NomoreCO2가 하는 일</h2>
+    <p class="section-lead">이산화탄소를 줄이기 위해 세 가지 방법으로 행동해요.</p>
+    <div class="pillars">
+      <div class="pillar"><span class="pillar-icon">📢</span><h3>캠페인</h3><p>텀블러 쓰기, 전기 아끼기처럼 모두가 함께하는 탄소 줄이기 운동을 펼쳐요.</p></div>
+      <div class="pillar"><span class="pillar-icon">🌳</span><h3>현장활동</h3><p>나무를 심고, 플로깅을 하며 직접 지구를 돌봐요.</p></div>
+      <div class="pillar"><span class="pillar-icon">📚</span><h3>교육</h3><p>기후변화가 왜 생기는지 친구들과 동생들에게 쉽게 알려 줘요.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-soft">
+  <div class="container">
+    <div class="section-head">
+      <h2 class="section-title">최근 활동 소식</h2>
+      <a class="more" href="/activities">전체 보기 →</a>
+    </div>
+    <div class="cards">
+      {% for p in posts %}{{ post_card(p) }}{% else %}<p class="muted">아직 활동 글이 없어요.</p>{% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <h2 class="section-title">지금 함께할 사람을 찾고 있어요</h2>
+      <a class="more" href="/join">모집 전체 보기 →</a>
+    </div>
+    <div class="recruit-list">
+      {% for r in recruits %}
+        <a class="recruit-row" href="/join#r{{ r.id }}">
+          {{ recruit_badge(r) }}<strong>{{ r.title }}</strong><span class="muted">{{ r.schedule }}</span>
+        </a>
+      {% else %}
+        <p class="muted">지금은 모집 중인 공고가 없어요.</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="section section-soft">
+  <div class="container">
+    <h2 class="section-title">오늘부터 할 수 있는 탄소 줄이기</h2>
+    <div class="tips">
+      <div class="tip">🚶 가까운 곳은 걷거나 자전거 타기</div>
+      <div class="tip">💡 안 쓰는 전등·플러그 끄기</div>
+      <div class="tip">🥤 일회용 컵 대신 텀블러</div>
+      <div class="tip">🍚 음식 남기지 않기</div>
+      <div class="tip">♻️ 분리배출 제대로 하기</div>
+      <div class="tip">👕 물건 오래 쓰고 나눠 쓰기</div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-band">
+  <div class="container cta-inner">
+    <div>
+      <h2>당신의 후원이 지구의 온도를 지킵니다</h2>
+      <p>NomoreCO2는 시민의 후원만으로 독립적으로 활동해요.</p>
+    </div>
+    <a class="btn btn-donate btn-lg" href="/donate">후원하기</a>
+  </div>
+</section>
+{% endblock %}

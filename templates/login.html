@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}로그인{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="container auth-box">
+    <h1>로그인</h1>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <form method="post" action="/login" class="form">
+      <input type="hidden" name="next" value="{{ next }}">
+      <label class="field">아이디<input name="username" required autofocus value="{{ username or '' }}"></label>
+      <label class="field">비밀번호<input type="password" name="password" required></label>
+      <button class="btn btn-primary btn-block">로그인</button>
+    </form>
+    <p class="muted center">아직 회원이 아닌가요? <a href="/signup">회원가입</a></p>
+  </div>
+</section>
+{% endblock %}

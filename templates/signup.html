@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}회원가입{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="container auth-box">
+    <h1>회원가입</h1>
+    <p class="muted">회원이 되면 내 후원·지원 내역을 볼 수 있어요.</p>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <form method="post" action="/signup" class="form">
+      <label class="field">아이디 (영어·숫자 4~20글자)<input name="username" required pattern="[A-Za-z0-9_]{4,20}" value="{{ form.get('username', '') }}"></label>
+      <label class="field">이름 (별명도 좋아요)<input name="name" required maxlength="50" value="{{ form.get('name', '') }}"></label>
+      <label class="field">비밀번호 (6글자 이상)<input type="password" name="password" required minlength="6"></label>
+      <label class="field">비밀번호 확인<input type="password" name="password2" required minlength="6"></label>
+      <button class="btn btn-primary btn-block">가입하기</button>
+    </form>
+    <p class="muted center">이미 회원인가요? <a href="/login">로그인</a></p>
+  </div>
+</section>
+{% endblock %}

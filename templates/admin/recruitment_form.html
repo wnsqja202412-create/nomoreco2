@@ -1,0 +1,17 @@
+{% extends "admin/layout.html" %}
+{% block title %}{{ '모집 공고 수정' if item else '새 모집 공고' }}{% endblock %}
+{% block admin %}
+<h1>{{ '모집 공고 수정' if item else '새 모집 공고' }}</h1>
+<form method="post" class="form">
+  <label class="field">제목<input name="title" required maxlength="200" value="{{ item.title if item else '' }}" placeholder="예: 🌱 기후 지킴이 자원봉사자"></label>
+  <label class="field">분야<input name="field" required maxlength="50" value="{{ item.field if item else '' }}" placeholder="예: 현장활동, 홍보, 온라인"></label>
+  <label class="field">하는 일<textarea name="description" rows="4" required>{{ item.description if item else '' }}</textarea></label>
+  <label class="field">지원 대상<textarea name="requirements" rows="3">{{ item.requirements if item else '' }}</textarea></label>
+  <label class="field">활동 일정<input name="schedule" maxlength="200" value="{{ item.schedule if item else '' }}"></label>
+  <label class="check"><input type="checkbox" name="is_open" value="1" {{ 'checked' if (item is none or item.is_open) }}> 지금 모집 중</label>
+  <div class="actions">
+    <button class="btn btn-primary">저장하기</button>
+    <a class="btn btn-outline" href="/admin/recruitments">취소</a>
+  </div>
+</form>
+{% endblock %}

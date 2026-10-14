@@ -1,0 +1,30 @@
+{% extends "admin/layout.html" %}
+{% block title %}지원서 확인{% endblock %}
+{% block admin %}
+<h1>지원서 확인</h1>
+<div class="table-wrap"><table class="table">
+  <tr><th>날짜</th><th>모집</th><th>이름</th><th>연락처</th><th>학년</th><th>지원 동기</th><th>상태</th><th></th></tr>
+  {% for a in items %}
+    <tr>
+      <td>{{ a.created_at|datefmt }}</td>
+      <td>{{ a.recruitment.title }}</td>
+      <td>{{ a.name }}</td>
+      <td>{{ a.contact }}</td>
+      <td>{{ a.grade }}</td>
+      <td class="wrap">{{ a.message|nl2br }}</td>
+      <td>
+        <form method="post" action="/admin/applications/{{ a.id }}/status" class="inline">
+          <select name="status" onchange="this.form.submit()">
+            {% for s in statuses %}<option {{ 'selected' if a.status == s }}>{{ s }}</option>{% endfor %}
+          </select>
+        </form>
+      </td>
+      <td>
+        <form method="post" action="/admin/applications/{{ a.id }}/delete" class="inline" onsubmit="return confirm('정말 지울까요?')">
+          <button class="btn btn-sm btn-danger">삭제</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}<tr><td colspan="8" class="muted">아직 지원서가 없어요</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

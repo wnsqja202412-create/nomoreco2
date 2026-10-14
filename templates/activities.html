@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "_macros.html" import post_card %}
+{% block title %}우리가 하는 일{% endblock %}
+{% block content %}
+<section class="page-hero">
+  <div class="container">
+    <p class="eyebrow">OUR WORK</p>
+    <h1>우리가 하는 일</h1>
+    <p>NomoreCO2가 이산화탄소를 줄이기 위해 해 온 활동들이에요.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="toolbar">
+      <div class="tabs">
+        <a href="/activities" class="{{ 'active' if not current }}">전체</a>
+        {% for c in categories %}
+          <a href="/activities?category={{ c }}" class="{{ 'active' if current == c }}">{{ CATEGORY_EMOJI[c] }} {{ c }}</a>
+        {% endfor %}
+      </div>
+      {% if has_perm(user, 'content_edit') %}
+        <a class="btn btn-primary" href="/admin/posts/new">+ 새 활동 글 쓰기</a>
+      {% endif %}
+    </div>
+    <div class="cards">
+      {% for p in posts %}{{ post_card(p) }}{% else %}<p class="muted">이 분류에는 아직 글이 없어요.</p>{% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}
