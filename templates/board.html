@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}게시판{% endblock %}
+{% block content %}
+<section class="page-hero">
+  <div class="container">
+    <p class="eyebrow">BOARD</p>
+    <h1>게시판</h1>
+    <p>NomoreCO2의 공지와 소식을 알려 드려요.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    {% if has_perm(user, 'content_edit') %}
+      <div class="toolbar">
+        <span></span>
+        <a class="btn btn-primary" href="/admin/board/new">+ 새 글 쓰기</a>
+      </div>
+    {% endif %}
+    <div class="table-wrap"><table class="table">
+      <tr><th>번호</th><th>제목</th><th>날짜</th></tr>
+      {% for b in items %}
+        <tr>
+          <td>{% if b.is_pinned %}<span class="badge badge-open">공지</span>{% else %}{{ b.id }}{% endif %}</td>
+          <td class="wrap"><a href="/board/{{ b.id }}">{{ b.title }}</a>{% if b.comments %} <span class="muted">[{{ b.comments|length }}]</span>{% endif %}</td>
+          <td>{{ b.created_at|datefmt }}</td>
+        </tr>
+      {% else %}<tr><td colspan="3" class="muted">아직 글이 없어요.</td></tr>{% endfor %}
+    </table></div>
+  </div>
+</section>
+{% endblock %}

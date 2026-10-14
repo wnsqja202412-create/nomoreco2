@@ -20,6 +20,7 @@
       <nav class="nav">
         <a href="/about" class="{{ 'active' if path.startswith('/about') }}">단체 소개</a>
         <a href="/activities" class="{{ 'active' if path.startswith('/activities') }}">우리가 하는 일</a>
+        <a href="/board" class="{{ 'active' if path.startswith('/board') }}">게시판</a>
         <a href="/join" class="{{ 'active' if path.startswith('/join') }}">함께하기</a>
         {% if user %}
           {% if has_perm(user, 'admin_access') %}
@@ -49,6 +50,7 @@
       <div class="footer-links">
         <a href="/about">단체 소개</a>
         <a href="/activities">우리가 하는 일</a>
+        <a href="/board">게시판</a>
         <a href="/join">함께하기</a>
         <a href="/donate">후원하기</a>
       </div>

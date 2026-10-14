@@ -1,0 +1,25 @@
+{% extends "admin/layout.html" %}
+{% block title %}게시판 관리{% endblock %}
+{% block admin %}
+<div class="section-head">
+  <h1>게시판 관리</h1>
+  <a class="btn btn-primary" href="/admin/board/new">+ 새 글 쓰기</a>
+</div>
+<div class="table-wrap"><table class="table">
+  <tr><th>날짜</th><th>공지</th><th>제목</th><th>댓글</th><th></th></tr>
+  {% for b in items %}
+    <tr>
+      <td>{{ b.created_at|datefmt }}</td>
+      <td>{{ '📌' if b.is_pinned }}</td>
+      <td><a href="/board/{{ b.id }}">{{ b.title }}</a></td>
+      <td>{{ b.comments|length }}</td>
+      <td class="actions">
+        <a class="btn btn-sm btn-outline" href="/admin/board/{{ b.id }}/edit">수정</a>
+        <form method="post" action="/admin/board/{{ b.id }}/delete" class="inline" onsubmit="return confirm('정말 지울까요?')">
+          <button class="btn btn-sm btn-danger">삭제</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}<tr><td colspan="5" class="muted">글이 없어요</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

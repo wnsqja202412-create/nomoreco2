@@ -44,6 +44,38 @@ class Post(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=now_kst)
 
 
+class BoardPost(Base):
+    """게시판 글 (누구나 읽고, 관리자만 쓰고 고쳐요)"""
+
+    __tablename__ = "board_posts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(200))
+    content: Mapped[str] = mapped_column(Text)
+    is_pinned: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_kst)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=now_kst)
+
+    comments: Mapped[list["Comment"]] = relationship(
+        back_populates="post", cascade="all, delete-orphan", order_by="Comment.id"
+    )
+
+
+class Comment(Base):
+    """게시판 댓글 (로그인한 사람이 써요)"""
+
+    __tablename__ = "comments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    board_post_id: Mapped[int] = mapped_column(ForeignKey("board_posts.id"), index=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    author_name: Mapped[str] = mapped_column(String(50))
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_kst)
+
+    post: Mapped[BoardPost] = relationship(back_populates="comments")
+
+
 class Recruitment(Base):
     """사람 모집 공고"""
 

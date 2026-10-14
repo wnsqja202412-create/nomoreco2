@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}{{ item.title }}{% endblock %}
+{% block content %}
+<article class="section">
+  <div class="container narrow">
+    <a class="more" href="/board">← 목록으로</a>
+    <p class="post-meta">{% if item.is_pinned %}<span class="badge badge-open">공지</span> {% endif %}<time>{{ item.created_at|datefmt }}</time></p>
+    <h1 class="post-title">{{ item.title }}</h1>
+    <div class="post-content">{{ item.content|nl2br }}</div>
+
+    {% if has_perm(user, 'content_edit') %}
+      <div class="admin-actions">
+        <a class="btn btn-primary" href="/admin/board/{{ item.id }}/edit">수정하기</a>
+        <form method="post" action="/admin/board/{{ item.id }}/delete" class="inline"
+              onsubmit="return confirm('정말 지울까요?')">
+          <button class="btn btn-danger">삭제하기</button>
+        </form>
+      </div>
+    {% endif %}
+
+    <section id="comments" class="comments">
+      <h2 class="sub-title">💬 댓글 {{ item.comments|length }}개</h2>
+      {% for c in item.comments %}
+        <div class="comment">
+          <p class="comment-meta"><b>{{ c.author_name }}</b> <time>{{ c.created_at|datefmt }}</time>
+            {% if user and (c.user_id == user.id or has_perm(user, 'content_edit')) %}
+              <form method="post" action="/board/{{ item.id }}/comments/{{ c.id }}/delete" class="inline"
+                    onsubmit="return confirm('댓글을 지울까요?')">
+                <button class="linkbtn">삭제</button>
+              </form>
+            {% endif %}
+          </p>
+          <p>{{ c.content|nl2br }}</p>
+        </div>
+      {% else %}<p class="muted">아직 댓글이 없어요. 첫 댓글을 남겨 주세요!</p>{% endfor %}
+
+      {% if has_perm(user, 'comment') %}
+        <form method="post" action="/board/{{ item.id }}/comments" class="form comment-form">
+          <label class="field">댓글 쓰기<textarea name="content" rows="3" maxlength="1000" required></textarea></label>
+          <div><button class="btn btn-primary">댓글 남기기</button></div>
+        </form>
+      {% else %}
+        <p class="muted"><a href="/login?next=/board/{{ item.id }}">로그인</a>하면 댓글을 남길 수 있어요.</p>
+      {% endif %}
+    </section>
+  </div>
+</article>
+{% endblock %}

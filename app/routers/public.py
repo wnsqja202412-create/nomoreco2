@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_user, require_permission
+from ..auth import Forbidden, get_current_user, has_permission, require_permission
 from ..database import get_db
 from ..models import (CATEGORIES, DONATION_TYPES, PAYMENT_METHODS, Application,
-                      Donation, Post, Recruitment, User)
+                      BoardPost, Comment, Donation, Post, Recruitment, User)
 from ..templating import flash, render
 
 router = APIRouter()
@@ -55,6 +55,55 @@ def activity_detail(post_id: int, request: Request, db: Session = Depends(get_db
     if post is None:
         raise HTTPException(404)
     return render(request, "activity_detail.html", db, post=post)
+
+
+# ---------- 게시판 ----------
+
+@router.get("/board")
+def board(request: Request, db: Session = Depends(get_db)):
+    items = (db.query(BoardPost)
+             .order_by(BoardPost.is_pinned.desc(), BoardPost.id.desc()).all())
+    return render(request, "board.html", db, items=items)
+
+
+@router.get("/board/{item_id}")
+def board_detail(item_id: int, request: Request, db: Session = Depends(get_db)):
+    item = db.get(BoardPost, item_id)
+    if item is None:
+        raise HTTPException(404)
+    return render(request, "board_detail.html", db, item=item)
+
+
+@router.post("/board/{item_id}/comments")
+def comment_create(item_id: int, request: Request, db: Session = Depends(get_db),
+                   user: User = Depends(require_permission("comment")),
+                   content: str = Form(...)):
+    item = db.get(BoardPost, item_id)
+    if item is None:
+        raise HTTPException(404)
+    content = content.strip()[:1000]
+    if content:
+        db.add(Comment(board_post_id=item.id, user_id=user.id, author_name=user.name,
+                       content=content))
+        db.commit()
+        flash(request, "댓글을 남겼어요.")
+    return RedirectResponse(f"/board/{item.id}#comments", status_code=303)
+
+
+@router.post("/board/{item_id}/comments/{comment_id}/delete")
+def comment_delete(item_id: int, comment_id: int, request: Request,
+                   db: Session = Depends(get_db),
+                   user: User = Depends(require_permission("comment"))):
+    comment = db.get(Comment, comment_id)
+    if comment is None or comment.board_post_id != item_id:
+        raise HTTPException(404)
+    # 내가 쓴 댓글이거나 관리자일 때만 지울 수 있어요.
+    if comment.user_id != user.id and not has_permission(user, "content_edit"):
+        raise Forbidden()
+    db.delete(comment)
+    db.commit()
+    flash(request, "댓글을 지웠어요.")
+    return RedirectResponse(f"/board/{item_id}#comments", status_code=303)
 
 
 # ---------- 후원 ----------

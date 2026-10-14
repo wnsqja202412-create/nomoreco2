@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 
 from ..auth import ROLE_PERMISSIONS, require_permission
 from ..database import get_db
-from ..models import (APPLICATION_STATUSES, CATEGORIES, Application, Donation, Post,
-                      Recruitment, Setting, User, now_kst)
+from ..models import (APPLICATION_STATUSES, CATEGORIES, Application, BoardPost, Comment,
+                      Donation, Post, Recruitment, Setting, User, now_kst)
 from ..site import SETTING_FIELDS, get_settings
 from ..templating import flash, render
 
@@ -31,6 +31,7 @@ def get_or_404(db: Session, model, obj_id: int):
 def dashboard(request: Request, db: Session = Depends(get_db)):
     counts = {
         "posts": db.query(Post).count(),
+        "board": db.query(BoardPost).count(),
         "recruitments": db.query(Recruitment).filter(Recruitment.is_open.is_(True)).count(),
         "applications": db.query(Application).count(),
         "donations": db.query(Donation).count(),
@@ -99,6 +100,61 @@ def post_delete(post_id: int, request: Request, db: Session = Depends(get_db),
     db.commit()
     flash(request, "활동 글을 지웠어요.")
     return go("/admin/posts")
+
+
+# ---------- 게시판 ----------
+
+@router.get("/board")
+def board(request: Request, db: Session = Depends(get_db)):
+    items = (db.query(BoardPost)
+             .order_by(BoardPost.is_pinned.desc(), BoardPost.id.desc()).all())
+    return render(request, "admin/board.html", db, items=items)
+
+
+@router.get("/board/new")
+def board_new(request: Request, db: Session = Depends(get_db), _=Depends(content_editor)):
+    return render(request, "admin/board_form.html", db, item=None)
+
+
+@router.post("/board/new")
+def board_create(
+    request: Request, db: Session = Depends(get_db), _=Depends(content_editor),
+    title: str = Form(...), content: str = Form(...), is_pinned: str | None = Form(None),
+):
+    item = BoardPost(title=title, content=content, is_pinned=bool(is_pinned))
+    db.add(item)
+    db.commit()
+    flash(request, "게시판에 새 글을 올렸어요.")
+    return go(f"/board/{item.id}")
+
+
+@router.get("/board/{item_id}/edit")
+def board_edit(item_id: int, request: Request, db: Session = Depends(get_db),
+               _=Depends(content_editor)):
+    item = get_or_404(db, BoardPost, item_id)
+    return render(request, "admin/board_form.html", db, item=item)
+
+
+@router.post("/board/{item_id}/edit")
+def board_update(
+    item_id: int, request: Request, db: Session = Depends(get_db), _=Depends(content_editor),
+    title: str = Form(...), content: str = Form(...), is_pinned: str | None = Form(None),
+):
+    item = get_or_404(db, BoardPost, item_id)
+    item.title, item.content, item.is_pinned = title, content, bool(is_pinned)
+    item.updated_at = now_kst()
+    db.commit()
+    flash(request, "게시판 글을 수정했어요.")
+    return go(f"/board/{item.id}")
+
+
+@router.post("/board/{item_id}/delete")
+def board_delete(item_id: int, request: Request, db: Session = Depends(get_db),
+                 _=Depends(content_editor)):
+    db.delete(get_or_404(db, BoardPost, item_id))
+    db.commit()
+    flash(request, "게시판 글을 지웠어요.")
+    return go("/admin/board")
 
 
 # ---------- 모집 공고 ----------
@@ -237,6 +293,7 @@ def user_delete(user_id: int, request: Request, db: Session = Depends(get_db),
         return go("/admin/users")
     db.query(Application).filter_by(user_id=target.id).update({"user_id": None})
     db.query(Donation).filter_by(user_id=target.id).update({"user_id": None})
+    db.query(Comment).filter_by(user_id=target.id).update({"user_id": None})
     db.delete(target)
     db.commit()
     flash(request, f"{target.username} 회원을 지웠어요.")

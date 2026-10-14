@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 
 from .auth import ROLE_ADMIN, hash_password
 from .database import SessionLocal
-from .models import Post, Recruitment, User
+from .models import BoardPost, Post, Recruitment, User
 
 SAMPLE_POSTS = [
     dict(
@@ -85,6 +85,13 @@ def seed() -> None:
 
         if db.query(Post).count() == 0:
             db.add_all(Post(**p) for p in reversed(SAMPLE_POSTS))
+        if db.query(BoardPost).count() == 0:
+            db.add(BoardPost(
+                title="📌 NomoreCO2 게시판을 열었어요",
+                content="이곳에서 NomoreCO2의 공지와 소식을 알려 드려요.\n"
+                        "게시판 글은 관리자만 쓰고 고칠 수 있어요.",
+                is_pinned=True,
+            ))
         if db.query(Recruitment).count() == 0:
             db.add_all(Recruitment(**r) for r in SAMPLE_RECRUITMENTS)
         db.commit()

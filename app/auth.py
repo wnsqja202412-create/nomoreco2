@@ -18,8 +18,8 @@ ROLE_USER = "user"
 
 # 역할별 권한표
 ROLE_PERMISSIONS = {
-    ROLE_ADMIN: {"view", "apply", "admin_access", "content_edit", "manage_users"},
-    ROLE_USER: {"view", "apply"},
+    ROLE_ADMIN: {"view", "apply", "comment", "admin_access", "content_edit", "manage_users"},
+    ROLE_USER: {"view", "apply", "comment"},
 }
 ROLE_LABELS = {ROLE_ADMIN: "관리자", ROLE_USER: "일반 사용자"}
 
