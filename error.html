@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ code }}{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="container narrow center">
+    <div class="big-emoji">{{ '🔒' if code == 403 else '🌫️' }}</div>
+    <h1>{{ code }}</h1>
+    <p class="lead">{{ message }}</p>
+    {% if code == 404 %}<p class="muted"><small>요청한 주소: {{ request.url.path }}</small></p>{% endif %}
+    <a class="btn btn-primary" href="/">홈으로 가기</a>
+  </div>
+</section>
+{% endblock %}
