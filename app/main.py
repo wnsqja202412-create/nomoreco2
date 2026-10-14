@@ -19,7 +19,27 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 Base.metadata.create_all(engine)
 seed()
 
+class VercelPathFix:
+    """Vercel이 주소를 /api/index... 로 바꿔 보내면 원래 주소로 돌려놔요."""
+
+    PREFIXES = ("/api/index.py", "/api/index")
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            path = scope["path"]
+            for prefix in self.PREFIXES:
+                if path == prefix or path.startswith(prefix + "/"):
+                    path = path[len(prefix):] or "/"
+                    scope = dict(scope, path=path, raw_path=path.encode())
+                    break
+        await self.app(scope, receive, send)
+
+
 app = FastAPI(title="NomoreCO2", docs_url=None, redoc_url=None)
+app.add_middleware(VercelPathFix)
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SECRET_KEY", "dev-secret-please-change"),
