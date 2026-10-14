@@ -26,7 +26,9 @@ app.add_middleware(
     same_site="lax",
     https_only=bool(os.getenv("VERCEL")),
 )
-app.mount("/static", StaticFiles(directory=BASE_DIR / "public" / "static"), name="static")
+# Vercel에서는 public 폴더를 Vercel이 직접 보여 줘서, 폴더가 없어도 멈추지 않게 했어요.
+app.mount("/static", StaticFiles(directory=BASE_DIR / "public" / "static", check_dir=False),
+          name="static")
 
 app.include_router(public.router)
 app.include_router(auth.router)
