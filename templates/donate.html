@@ -4,9 +4,25 @@
 <section class="page-hero page-hero-donate">
   <div class="container">
     <p class="eyebrow">DONATE</p>
-    <h1>지구를 위한 가장 확실한 행동, 후원</h1>
-    <p>NomoreCO2는 정부·기업의 돈을 받지 않아요. 오직 여러분의 후원으로 이산화탄소를 줄이는 활동을 합니다.</p>
-    <a class="btn btn-donate btn-lg" href="#donate-form">후원 신청하러 가기 ↓</a>
+    <h1>{{ site.donate_title }}</h1>
+    <p>{{ site.donate_lead|nl2br }}</p>
+    <div class="hero-actions">
+      {% if is_open %}<a class="btn btn-donate btn-lg" href="#donate-form">후원 신청하러 가기 ↓</a>{% endif %}
+      <a class="btn btn-ghost btn-lg" href="#accounts">후원 계좌 보기 ↓</a>
+    </div>
+  </div>
+</section>
+
+<!-- 0. 후원 계좌 -->
+<section class="section" id="accounts">
+  <div class="container narrow">
+    <h2 class="section-title">🏦 후원 계좌</h2>
+    {% if accounts %}
+      <p class="section-lead">아래 계좌로 직접 보내 주셔도 돼요. 보내는 사람 이름을 신청서와 똑같이 적어 주시면 확인이 빨라요.</p>
+      {% include "_accounts.html" %}
+    {% else %}
+      <p class="muted">후원 계좌를 준비하고 있어요.</p>
+    {% endif %}
   </div>
 </section>
 
@@ -36,20 +52,21 @@
 <section class="section section-soft">
   <div class="container">
     <h2 class="section-title">내 후원금은 이렇게 쓰여요</h2>
-    <p class="section-lead">(예시) 후원 금액마다 할 수 있는 일이에요.</p>
+    <p class="section-lead">후원 금액마다 할 수 있는 일이에요.</p>
     <div class="impact">
       {% for value, text in amounts %}
         <div class="impact-item"><strong>{{ value|won }}</strong><p>{{ text }}</p></div>
       {% endfor %}
     </div>
 
-    <h3 class="sub-title">후원금 사용 비율 (예시)</h3>
+    {% if usage %}
+    <h3 class="sub-title">후원금 사용 비율</h3>
     <div class="usage">
-      <div class="usage-row"><span>📢 기후 캠페인</span><div class="bar"><i style="width:40%"></i></div><b>40%</b></div>
-      <div class="usage-row"><span>🌳 나무 심기·현장활동</span><div class="bar"><i style="width:30%"></i></div><b>30%</b></div>
-      <div class="usage-row"><span>📚 기후 교육</span><div class="bar"><i style="width:20%"></i></div><b>20%</b></div>
-      <div class="usage-row"><span>🏠 단체 운영</span><div class="bar"><i style="width:10%"></i></div><b>10%</b></div>
+      {% for label, percent in usage %}
+        <div class="usage-row"><span>{{ label }}</span><div class="bar"><i style="width:{{ percent }}%"></i></div><b>{{ percent }}%</b></div>
+      {% endfor %}
     </div>
+    {% endif %}
   </div>
 </section>
 
@@ -68,7 +85,7 @@
     <div class="methods">
       <div class="method"><h4>🏦 CMS 자동이체</h4><p>정기후원에 가장 편리해요. 매달 정한 날짜에 통장에서 자동으로 후원돼요.</p></div>
       <div class="method"><h4>💳 신용카드</h4><p>정기·일시후원 모두 가능해요. 매달 카드로 자동 결제돼요.</p></div>
-      <div class="method"><h4>📄 계좌이체</h4><p>일시후원할 때 아래 계좌로 직접 보내요.<br><b>{{ site.bank_info }}</b></p></div>
+      <div class="method"><h4>📄 계좌이체</h4><p>일시후원할 때 <a href="#accounts">위의 후원 계좌</a>로 직접 보내요.</p></div>
       <div class="method"><h4>📱 휴대폰 결제</h4><p>일시후원을 휴대폰 요금과 함께 낼 수 있어요.</p></div>
     </div>
   </div>
@@ -78,9 +95,12 @@
 <section class="section section-soft" id="donate-form">
   <div class="container narrow">
     <h2 class="section-title">후원 신청서</h2>
-    <p class="notice-box">⚠️ 학교 과제용 사이트라서 <b>실제 결제는 되지 않아요.</b> 신청서만 저장되고, 관리자가 확인해요.</p>
+    {% if site.donate_notice.strip() %}<p class="notice-box">⚠️ {{ site.donate_notice|nl2br }}</p>{% endif %}
     {% if error %}<div class="error">{{ error }}</div>{% endif %}
 
+    {% if not is_open %}
+      <p class="notice-box">{{ site.donate_closed_message|nl2br }}</p>
+    {% else %}
     <form method="post" action="/donate#donate-form" class="form">
       <fieldset>
         <legend>후원 종류</legend>
@@ -123,21 +143,20 @@
         후원 안내를 위해 이름과 연락처를 저장하는 데 동의해요. (14세 미만은 보호자와 함께 신청해 주세요)</label>
       <button class="btn btn-donate btn-lg btn-block">후원 신청하기</button>
     </form>
+    {% endif %}
   </div>
 </section>
 
 <!-- 5. 자주 묻는 질문 -->
+{% if faqs %}
 <section class="section">
   <div class="container narrow">
     <h2 class="section-title">자주 묻는 질문</h2>
-    <details class="faq"><summary>정기후원은 언제든지 그만하거나 금액을 바꿀 수 있나요?</summary>
-      <p>네! {{ site.contact_email }} 로 연락 주시면 언제든지 바꾸거나 멈출 수 있어요.</p></details>
-    <details class="faq"><summary>기부금 영수증을 받을 수 있나요?</summary>
-      <p>실제 비영리단체로 등록된 곳은 연말정산용 기부금 영수증을 발급해요. NomoreCO2는 과제용 가상 단체라 발급하지 않아요.</p></details>
-    <details class="faq"><summary>후원금이 어디에 쓰였는지 알 수 있나요?</summary>
-      <p>매년 활동 보고서를 '우리가 하는 일' 게시판에 올려 투명하게 공개할 거예요.</p></details>
-    <details class="faq"><summary>어린이도 후원할 수 있나요?</summary>
-      <p>용돈으로 하는 작은 후원도 큰 힘이 돼요! 꼭 보호자와 함께 신청해 주세요. 돈이 아니어도 <a href="/join">자원봉사</a>로 함께할 수 있어요.</p></details>
+    {% for q, a in faqs %}
+      <details class="faq"><summary>{{ q }}</summary><p>{{ a }}</p></details>
+    {% endfor %}
+    <p class="muted">더 궁금한 점은 {{ site.contact_email }} 로 물어봐 주세요.</p>
   </div>
 </section>
+{% endif %}
 {% endblock %}

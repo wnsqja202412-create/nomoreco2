@@ -3,7 +3,7 @@ import os
 
 from sqlalchemy.exc import IntegrityError
 
-from .auth import ROLE_ADMIN, hash_password
+from .auth import ROLE_SUPER, hash_password
 from .database import SessionLocal
 from .models import BoardPost, Post, Recruitment, User
 
@@ -71,17 +71,18 @@ SAMPLE_RECRUITMENTS = [
 def seed() -> None:
     db = SessionLocal()
     try:
+        # ADMIN_USERNAME 계정은 언제나 총관리자예요. (다른 관리자가 바꿔도 다시 켜면 돌아와요)
         admin_username = os.getenv("ADMIN_USERNAME", "admin")
         admin = db.query(User).filter_by(username=admin_username).first()
         if admin is None:
             db.add(User(
                 username=admin_username,
-                name="관리자",
-                role=ROLE_ADMIN,
+                name="총관리자",
+                role=ROLE_SUPER,
                 password_hash=hash_password(os.getenv("ADMIN_PASSWORD", "nomoreco2!")),
             ))
-        elif admin.role != ROLE_ADMIN:
-            admin.role = ROLE_ADMIN
+        elif admin.role != ROLE_SUPER:
+            admin.role = ROLE_SUPER
 
         if db.query(Post).count() == 0:
             db.add_all(Post(**p) for p in reversed(SAMPLE_POSTS))
@@ -89,7 +90,7 @@ def seed() -> None:
             db.add(BoardPost(
                 title="📌 NomoreCO2 게시판을 열었어요",
                 content="이곳에서 NomoreCO2의 공지와 소식을 알려 드려요.\n"
-                        "게시판 글은 관리자만 쓰고 고칠 수 있어요.",
+                        "로그인하면 누구나 글을 쓸 수 있어요. 서로 예의를 지켜 주세요!",
                 is_pinned=True,
             ))
         if db.query(Recruitment).count() == 0:

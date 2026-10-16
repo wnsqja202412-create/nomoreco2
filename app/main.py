@@ -8,7 +8,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
 from .auth import Forbidden, LoginRequired
-from .database import Base, SessionLocal, engine
+from .database import Base, SessionLocal, add_missing_columns, engine
 from .routers import admin, auth, public
 from .seed import seed
 from .templating import render
@@ -17,6 +17,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # 표를 만들고 관리자 아이디·예시 글을 넣어요.
 Base.metadata.create_all(engine)
+add_missing_columns()
 seed()
 
 class VercelPathFix:
@@ -71,7 +72,7 @@ def _error_page(request: Request, status_code: int, message: str):
 
 @app.exception_handler(Forbidden)
 async def forbidden_handler(request: Request, exc: Forbidden):
-    return _error_page(request, 403, "관리자만 들어갈 수 있는 곳이에요.")
+    return _error_page(request, 403, "이 일을 할 권한이 없어요.")
 
 
 @app.exception_handler(StarletteHTTPException)

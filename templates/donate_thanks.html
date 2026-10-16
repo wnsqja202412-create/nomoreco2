@@ -12,8 +12,11 @@
       <tr><th>결제 방법</th><td>{{ donation.method }}</td></tr>
       <tr><th>신청일</th><td>{{ donation.created_at|datefmt }}</td></tr>
     </table>
-    {% if donation.method == '계좌이체' %}<p class="notice-box">계좌 안내: <b>{{ site.bank_info }}</b></p>{% endif %}
-    <p class="muted">※ 학교 과제용 사이트라서 실제 결제는 이루어지지 않았어요.</p>
+    {% if donation.method == '계좌이체' and accounts %}
+      <h2 class="sub-title">아래 계좌로 보내 주세요</h2>
+      {% include "_accounts.html" %}
+    {% endif %}
+    {% if site.donate_notice.strip() %}<p class="muted">※ {{ site.donate_notice }}</p>{% endif %}
     <a class="btn btn-primary" href="/activities">우리가 하는 일 보러 가기</a>
   </div>
 </section>

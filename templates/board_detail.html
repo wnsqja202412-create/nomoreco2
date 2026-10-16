@@ -4,14 +4,14 @@
 <article class="section">
   <div class="container narrow">
     <a class="more" href="/board">← 목록으로</a>
-    <p class="post-meta">{% if item.is_pinned %}<span class="badge badge-open">공지</span> {% endif %}<time>{{ item.created_at|datefmt }}</time></p>
+    <p class="post-meta">{% if item.is_pinned %}<span class="badge badge-open">공지</span> {% endif %}<b>{{ item.author_name }}</b> <time>{{ item.created_at|datefmt }}</time></p>
     <h1 class="post-title">{{ item.title }}</h1>
     <div class="post-content">{{ item.content|nl2br }}</div>
 
-    {% if has_perm(user, 'content_edit') %}
+    {% if can_edit %}
       <div class="admin-actions">
-        <a class="btn btn-primary" href="/admin/board/{{ item.id }}/edit">수정하기</a>
-        <form method="post" action="/admin/board/{{ item.id }}/delete" class="inline"
+        <a class="btn btn-primary" href="/board/{{ item.id }}/edit">수정하기</a>
+        <form method="post" action="/board/{{ item.id }}/delete" class="inline"
               onsubmit="return confirm('정말 지울까요?')">
           <button class="btn btn-danger">삭제하기</button>
         </form>

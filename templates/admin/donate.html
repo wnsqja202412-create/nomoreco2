@@ -1,0 +1,72 @@
+{% extends "admin/layout.html" %}
+{% block title %}후원 페이지 관리{% endblock %}
+{% block admin %}
+<div class="section-head">
+  <h1>후원 페이지 관리</h1>
+  <a class="btn btn-outline" href="/donate" target="_blank">후원 페이지 보기 ↗</a>
+</div>
+
+<h2 class="sub-title" id="accounts">🏦 후원 계좌</h2>
+{% if has_perm(user, 'manage_bank') %}
+  <p class="muted">여기 적은 계좌가 후원 페이지와 신청 완료 화면에 그대로 보여요. 계좌번호를 한 번 더 꼭 확인해 주세요.</p>
+{% else %}
+  <p class="notice-box">🔒 후원 계좌는 돈이 오가는 정보라서 <b>총관리자만</b> 바꿀 수 있어요.</p>
+{% endif %}
+
+<div class="table-wrap"><table class="table">
+  <tr><th>순서</th><th>은행</th><th>계좌번호</th><th>예금주</th><th>메모</th><th>보이기</th><th></th></tr>
+  {% for a in accounts %}
+    {% if has_perm(user, 'manage_bank') %}
+      {% set fid = 'acc-%d' % a.id %}
+      <tr>
+        <td><input form="{{ fid }}" class="cell-input" name="sort_order" value="{{ a.sort_order }}" size="2"></td>
+        <td><input form="{{ fid }}" class="cell-input" name="bank_name" value="{{ a.bank_name }}" required maxlength="50" size="8"></td>
+        <td><input form="{{ fid }}" class="cell-input" name="account_number" value="{{ a.account_number }}" required maxlength="50" size="16"></td>
+        <td><input form="{{ fid }}" class="cell-input" name="holder" value="{{ a.holder }}" required maxlength="50" size="8"></td>
+        <td><input form="{{ fid }}" class="cell-input" name="memo" value="{{ a.memo }}" maxlength="200" size="14"></td>
+        <td><input form="{{ fid }}" type="checkbox" name="is_active" value="1" {{ 'checked' if a.is_active }}></td>
+        <td class="actions">
+          <form id="{{ fid }}" method="post" action="/admin/donate/accounts/{{ a.id }}/edit" class="inline">
+            <button class="btn btn-sm btn-primary">저장</button>
+          </form>
+          <form method="post" action="/admin/donate/accounts/{{ a.id }}/delete" class="inline" onsubmit="return confirm('이 계좌를 지울까요?')">
+            <button class="btn btn-sm btn-danger">삭제</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td>{{ a.sort_order }}</td><td>{{ a.bank_name }}</td><td>{{ a.account_number }}</td><td>{{ a.holder }}</td>
+        <td>{{ a.memo }}</td><td>{{ '✅' if a.is_active else '—' }}</td><td></td></tr>
+    {% endif %}
+  {% else %}<tr><td colspan="7" class="muted">아직 등록된 계좌가 없어요. 후원 페이지에는 "계좌 준비 중"이라고 보여요.</td></tr>{% endfor %}
+</table></div>
+
+{% if has_perm(user, 'manage_bank') %}
+  <form method="post" action="/admin/donate/accounts/new" class="form account-new">
+    <h3>+ 새 계좌 추가</h3>
+    <div class="form-grid">
+      <label class="field">은행<input name="bank_name" required maxlength="50" placeholder="예: 국민은행"></label>
+      <label class="field">계좌번호<input name="account_number" required maxlength="50" placeholder="예: 123456-01-123456"></label>
+      <label class="field">예금주<input name="holder" required maxlength="50" placeholder="예: NomoreCO2"></label>
+      <label class="field">메모 (선택)<input name="memo" maxlength="200" placeholder="예: 일시후원 전용"></label>
+      <label class="field">순서 (작을수록 위)<input name="sort_order" value="0"></label>
+      <label class="check"><input type="checkbox" name="is_active" value="1" checked> 후원 페이지에 보이기</label>
+    </div>
+    <div><button class="btn btn-primary">계좌 추가하기</button></div>
+  </form>
+{% endif %}
+
+<h2 class="sub-title">📝 후원 페이지 문구</h2>
+<form method="post" action="/admin/donate" class="form">
+  {% for key, label, _default, multiline in fields %}
+    <label class="field">{{ label }}
+      {% if multiline %}
+        <textarea name="{{ key }}" rows="{{ 6 if '|' in values[key] else 3 }}">{{ values[key] }}</textarea>
+      {% else %}
+        <input name="{{ key }}" value="{{ values[key] }}">
+      {% endif %}
+    </label>
+  {% endfor %}
+  <div><button class="btn btn-primary">문구 저장하기</button></div>
+</form>
+{% endblock %}

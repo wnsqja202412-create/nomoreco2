@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ '게시판 글 수정' if item else '게시판 새 글' }}{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="container narrow">
+    <a class="more" href="{{ '/board/%d' % item.id if item else '/board' }}">← 돌아가기</a>
+    <h1>{{ '게시판 글 수정' if item else '게시판 새 글 쓰기' }}</h1>
+    <form method="post" class="form">
+      <label class="field">제목<input name="title" required maxlength="200" value="{{ item.title if item else '' }}"></label>
+      <label class="field">본문<textarea name="content" rows="12" required>{{ item.content if item else '' }}</textarea></label>
+      {% if has_perm(user, 'content_edit') %}
+        <label class="check"><input type="checkbox" name="is_pinned" value="1" {{ 'checked' if item and item.is_pinned }}> 공지로 맨 위에 고정하기</label>
+      {% endif %}
+      <div class="actions">
+        <button class="btn btn-primary">저장하기</button>
+        <a class="btn btn-outline" href="{{ '/board/%d' % item.id if item else '/board' }}">취소</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

@@ -4,14 +4,19 @@
 <section class="section admin">
   <div class="container admin-grid">
     <aside class="admin-side">
-      <p class="admin-badge">🔑 관리자 모드</p>
+      <p class="admin-badge">🔑 {{ ROLE_LABELS.get(user.role, '관리자') }} 모드</p>
       <a href="/admin" class="{{ 'active' if path == '/admin' }}">대시보드</a>
       <a href="/admin/posts" class="{{ 'active' if path.startswith('/admin/posts') }}">활동 글 관리</a>
       <a href="/admin/board" class="{{ 'active' if path.startswith('/admin/board') }}">게시판 관리</a>
       <a href="/admin/recruitments"class="{{ 'active' if path.startswith('/admin/recruitments') }}">모집 공고 관리</a>
       <a href="/admin/applications" class="{{ 'active' if path.startswith('/admin/applications') }}">지원서 확인</a>
       <a href="/admin/donations" class="{{ 'active' if path.startswith('/admin/donations') }}">후원 신청 확인</a>
-      <a href="/admin/users" class="{{ 'active' if path.startswith('/admin/users') }}">회원·권한 관리</a>
+      {% if has_perm(user, 'manage_donate') %}
+        <a href="/admin/donate" class="{{ 'active' if path == '/admin/donate' }}">후원 페이지 관리</a>
+      {% endif %}
+      {% if has_perm(user, 'manage_users') %}
+        <a href="/admin/users" class="{{ 'active' if path.startswith('/admin/users') }}">회원·권한 관리</a>
+      {% endif %}
       <a href="/admin/settings" class="{{ 'active' if path.startswith('/admin/settings') }}">사이트 문구 설정</a>
     </aside>
     <div class="admin-main">{% block admin %}{% endblock %}</div>

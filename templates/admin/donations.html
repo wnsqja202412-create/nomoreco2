@@ -9,7 +9,7 @@
   {% endfor %}
 </div>
 <div class="table-wrap"><table class="table">
-  <tr><th>날짜</th><th>이름</th><th>연락처</th><th>종류</th><th>금액</th><th>방법</th><th>응원 한마디</th><th></th></tr>
+  <tr><th>날짜</th><th>이름</th><th>연락처</th><th>종류</th><th>금액</th><th>방법</th><th>상태</th><th>응원 한마디</th><th></th></tr>
   {% for d in items %}
     <tr>
       <td>{{ d.created_at|datefmt }}</td>
@@ -18,13 +18,24 @@
       <td>{{ d.donation_type }}</td>
       <td>{{ d.amount|won }}</td>
       <td>{{ d.method }}</td>
+      <td>
+        {% if has_perm(user, 'manage_donate') %}
+        <form method="post" action="/admin/donations/{{ d.id }}/status" class="inline">
+          <select name="status" onchange="this.form.submit()">
+            {% for s in statuses %}<option {{ 'selected' if d.status == s }}>{{ s }}</option>{% endfor %}
+          </select>
+        </form>
+        {% else %}{{ d.status }}{% endif %}
+      </td>
       <td class="wrap">{{ d.message|nl2br }}</td>
       <td>
+        {% if has_perm(user, 'manage_donate') %}
         <form method="post" action="/admin/donations/{{ d.id }}/delete" class="inline" onsubmit="return confirm('정말 지울까요?')">
           <button class="btn btn-sm btn-danger">삭제</button>
         </form>
+        {% endif %}
       </td>
     </tr>
-  {% else %}<tr><td colspan="8" class="muted">아직 후원 신청이 없어요</td></tr>{% endfor %}
+  {% else %}<tr><td colspan="9" class="muted">아직 후원 신청이 없어요</td></tr>{% endfor %}
 </table></div>
 {% endblock %}

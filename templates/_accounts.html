@@ -1,0 +1,22 @@
+<div class="accounts">
+  {% for a in accounts %}
+    <div class="account">
+      <div>
+        <p class="account-bank">{{ a.bank_name }}{% if a.memo %} <small class="muted">· {{ a.memo }}</small>{% endif %}</p>
+        <p class="account-number">{{ a.account_number }}</p>
+        <p class="muted">예금주 {{ a.holder }}</p>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline" data-copy="{{ a.account_number }}">복사</button>
+    </div>
+  {% endfor %}
+</div>
+<script>
+  document.querySelectorAll("[data-copy]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      navigator.clipboard.writeText(btn.dataset.copy).then(function () {
+        btn.textContent = "복사됨 ✓";
+        setTimeout(function () { btn.textContent = "복사"; }, 1500);
+      });
+    });
+  });
+</script>

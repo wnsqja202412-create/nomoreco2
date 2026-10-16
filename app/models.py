@@ -12,6 +12,7 @@ CATEGORIES = ["캠페인", "현장활동", "교육", "소식"]
 APPLICATION_STATUSES = ["접수", "검토중", "합격", "보류"]
 DONATION_TYPES = ["정기후원", "일시후원", "기념일후원"]
 PAYMENT_METHODS = ["CMS 자동이체", "신용카드", "계좌이체", "휴대폰 결제"]
+DONATION_STATUSES = ["신청", "입금확인", "취소"]
 
 
 def now_kst() -> datetime:
@@ -45,11 +46,13 @@ class Post(Base):
 
 
 class BoardPost(Base):
-    """게시판 글 (누구나 읽고, 관리자만 쓰고 고쳐요)"""
+    """게시판 글 (누구나 읽고, 로그인한 사람이 써요. 쓴 사람과 관리자가 고쳐요)"""
 
     __tablename__ = "board_posts"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    author_name: Mapped[str] = mapped_column(String(50), default="관리자")
     title: Mapped[str] = mapped_column(String(200))
     content: Mapped[str] = mapped_column(Text)
     is_pinned: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -126,7 +129,22 @@ class Donation(Base):
     amount: Mapped[int] = mapped_column(Integer)
     method: Mapped[str] = mapped_column(String(30))
     message: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(20), default="신청")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_kst)
+
+
+class BankAccount(Base):
+    """후원 페이지에 보여 줄 후원 계좌 (총관리자만 고쳐요)"""
+
+    __tablename__ = "bank_accounts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    bank_name: Mapped[str] = mapped_column(String(50))
+    account_number: Mapped[str] = mapped_column(String(50))
+    holder: Mapped[str] = mapped_column(String(50))
+    memo: Mapped[str] = mapped_column(String(200), default="")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class Setting(Base):

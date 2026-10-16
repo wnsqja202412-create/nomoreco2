@@ -1,6 +1,6 @@
 import os
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, literal, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 
@@ -29,6 +29,29 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False)
 
 class Base(DeclarativeBase):
     pass
+
+
+def add_missing_columns() -> None:
+    """예전에 만든 표에 새로 생긴 칸을 붙여 줘요. (create_all은 이미 있는 표를 고치지 않아요)"""
+    insp = inspect(engine)
+    for table in Base.metadata.sorted_tables:
+        if not insp.has_table(table.name):
+            continue
+        existing = {c["name"] for c in insp.get_columns(table.name)}
+        for col in table.columns:
+            if col.name in existing:
+                continue
+            sql = f"ALTER TABLE {table.name} ADD COLUMN {col.name} {col.type.compile(engine.dialect)}"
+            if col.default is not None and col.default.is_scalar:
+                value = literal(col.default.arg, col.type).compile(
+                    dialect=engine.dialect, compile_kwargs={"literal_binds": True})
+                sql += f" DEFAULT {value}"
+            try:
+                with engine.begin() as conn:
+                    conn.execute(text(sql))
+            except Exception:
+                # 서버 여러 개가 동시에 시작하면 이미 붙어 있을 수 있어요.
+                pass
 
 
 def get_db():

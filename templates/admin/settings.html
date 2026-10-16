@@ -2,7 +2,7 @@
 {% block title %}사이트 문구 설정{% endblock %}
 {% block admin %}
 <h1>사이트 문구 설정</h1>
-<p class="muted">메인 화면 제목, 후원 계좌, 연락처 같은 문구를 여기서 바꿀 수 있어요.</p>
+<p class="muted">메인 화면 제목, 연락처 같은 문구를 여기서 바꿀 수 있어요. 후원 계좌와 후원 페이지 문구는 <a href="/admin/donate">후원 페이지 관리</a>에서 바꿔요.</p>
 <form method="post" class="form">
   {% for key, label, _default, multiline in fields %}
     <label class="field">{{ label }}

@@ -4,15 +4,14 @@
 <section class="section">
   <div class="container narrow">
     <h1>{{ user.name }}님의 페이지</h1>
-    <p class="muted">아이디: {{ user.username }} · 권한: <b>{{ ROLE_LABELS.get(user.role, user.role) }}</b>
-      {% if not has_perm(user, 'content_edit') %}(글은 볼 수만 있어요){% endif %}</p>
+    <p class="muted">아이디: {{ user.username }} · 권한: <b>{{ ROLE_LABELS.get(user.role, user.role) }}</b></p>
 
     <h2 class="sub-title">내 후원 신청</h2>
     {% if donations %}
       <div class="table-wrap"><table class="table">
-        <tr><th>날짜</th><th>종류</th><th>금액</th><th>방법</th></tr>
+        <tr><th>날짜</th><th>종류</th><th>금액</th><th>방법</th><th>상태</th></tr>
         {% for d in donations %}
-          <tr><td>{{ d.created_at|datefmt }}</td><td>{{ d.donation_type }}</td><td>{{ d.amount|won }}</td><td>{{ d.method }}</td></tr>
+          <tr><td>{{ d.created_at|datefmt }}</td><td>{{ d.donation_type }}</td><td>{{ d.amount|won }}</td><td>{{ d.method }}</td><td><span class="badge">{{ d.status }}</span></td></tr>
         {% endfor %}
       </table></div>
     {% else %}<p class="muted">아직 후원 신청이 없어요. <a href="/donate">후원하러 가기</a></p>{% endif %}
@@ -26,6 +25,14 @@
         {% endfor %}
       </table></div>
     {% else %}<p class="muted">아직 지원한 모집이 없어요. <a href="/join">모집 보러 가기</a></p>{% endif %}
+
+    <h2 class="sub-title">비밀번호 바꾸기</h2>
+    <form method="post" action="/mypage/password" class="form auth-box">
+      <label class="field">지금 비밀번호<input type="password" name="current" required autocomplete="current-password"></label>
+      <label class="field">새 비밀번호 (6글자 이상)<input type="password" name="password" required minlength="6" autocomplete="new-password"></label>
+      <label class="field">새 비밀번호 확인<input type="password" name="password2" required minlength="6" autocomplete="new-password"></label>
+      <div><button class="btn btn-primary">비밀번호 바꾸기</button></div>
+    </form>
   </div>
 </section>
 {% endblock %}

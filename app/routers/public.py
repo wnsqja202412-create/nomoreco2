@@ -5,20 +5,16 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
-from ..auth import Forbidden, get_current_user, has_permission, require_permission
+from ..auth import (Forbidden, get_current_user, has_permission, hash_password,
+                    require_permission, verify_password)
 from ..database import get_db
 from ..models import (CATEGORIES, DONATION_TYPES, PAYMENT_METHODS, Application,
-                      BoardPost, Comment, Donation, Post, Recruitment, User)
+                      BoardPost, Comment, Donation, Post, Recruitment, User, now_kst)
+from ..site import (active_bank_accounts, donate_amounts, donate_usage, get_settings,
+                    split_lines)
 from ..templating import flash, render
 
 router = APIRouter()
-
-AMOUNT_CHOICES = [
-    (5000, "친환경 장바구니 1개를 나눠 줄 수 있어요"),
-    (10000, "어린 나무 2그루를 심을 수 있어요"),
-    (30000, "한 반 친구들에게 기후 수업을 1번 할 수 있어요"),
-    (50000, "동네 플로깅 캠페인을 1번 열 수 있어요"),
-]
 
 
 @router.get("/")
@@ -66,12 +62,95 @@ def board(request: Request, db: Session = Depends(get_db)):
     return render(request, "board.html", db, items=items)
 
 
-@router.get("/board/{item_id}")
-def board_detail(item_id: int, request: Request, db: Session = Depends(get_db)):
+def _can_edit_board(user: User | None, item: BoardPost) -> bool:
+    """쓴 사람 본인이거나 관리자면 고치고 지울 수 있어요."""
+    if user is None:
+        return False
+    return (item.user_id == user.id and has_permission(user, "write")) \
+        or has_permission(user, "content_edit")
+
+
+def _board_or_404(db: Session, item_id: int) -> BoardPost:
     item = db.get(BoardPost, item_id)
     if item is None:
         raise HTTPException(404)
-    return render(request, "board_detail.html", db, item=item)
+    return item
+
+
+@router.get("/board/new")
+def board_new(request: Request, db: Session = Depends(get_db),
+              _=Depends(require_permission("write"))):
+    return render(request, "board_form.html", db, item=None)
+
+
+@router.post("/board/new")
+def board_create(
+    request: Request, db: Session = Depends(get_db),
+    user: User = Depends(require_permission("write")),
+    title: str = Form(...), content: str = Form(...), is_pinned: str | None = Form(None),
+):
+    title, content = title.strip()[:200], content.strip()
+    if not title or not content:
+        flash(request, "제목과 내용을 써 주세요.")
+        return RedirectResponse("/board/new", status_code=303)
+    item = BoardPost(user_id=user.id, author_name=user.name, title=title, content=content,
+                     is_pinned=bool(is_pinned) and has_permission(user, "content_edit"))
+    db.add(item)
+    db.commit()
+    flash(request, "게시판에 새 글을 올렸어요.")
+    return RedirectResponse(f"/board/{item.id}", status_code=303)
+
+
+@router.get("/board/{item_id}/edit")
+def board_edit(item_id: int, request: Request, db: Session = Depends(get_db),
+               user: User = Depends(require_permission("view"))):
+    item = _board_or_404(db, item_id)
+    if not _can_edit_board(user, item):
+        raise Forbidden()
+    return render(request, "board_form.html", db, item=item)
+
+
+@router.post("/board/{item_id}/edit")
+def board_update(
+    item_id: int, request: Request, db: Session = Depends(get_db),
+    user: User = Depends(require_permission("view")),
+    title: str = Form(...), content: str = Form(...), is_pinned: str | None = Form(None),
+):
+    item = _board_or_404(db, item_id)
+    if not _can_edit_board(user, item):
+        raise Forbidden()
+    title, content = title.strip()[:200], content.strip()
+    if not title or not content:
+        flash(request, "제목과 내용을 써 주세요.")
+        return RedirectResponse(f"/board/{item.id}/edit", status_code=303)
+    item.title, item.content = title, content
+    # 공지 고정은 관리자만 바꿀 수 있어요.
+    if has_permission(user, "content_edit"):
+        item.is_pinned = bool(is_pinned)
+    item.updated_at = now_kst()
+    db.commit()
+    flash(request, "게시판 글을 수정했어요.")
+    return RedirectResponse(f"/board/{item.id}", status_code=303)
+
+
+@router.post("/board/{item_id}/delete")
+def board_delete(item_id: int, request: Request, db: Session = Depends(get_db),
+                 user: User = Depends(require_permission("view"))):
+    item = _board_or_404(db, item_id)
+    if not _can_edit_board(user, item):
+        raise Forbidden()
+    db.delete(item)
+    db.commit()
+    flash(request, "게시판 글을 지웠어요.")
+    return RedirectResponse("/board", status_code=303)
+
+
+@router.get("/board/{item_id}")
+def board_detail(item_id: int, request: Request, db: Session = Depends(get_db)):
+    item = _board_or_404(db, item_id)
+    user = get_current_user(request, db)
+    return render(request, "board_detail.html", db, item=item, user=user,
+                  can_edit=_can_edit_board(user, item))
 
 
 @router.post("/board/{item_id}/comments")
@@ -109,8 +188,12 @@ def comment_delete(item_id: int, comment_id: int, request: Request,
 # ---------- 후원 ----------
 
 def _donate_page(request, db, error=None, form=None, status_code=200):
+    site = get_settings(db)
     return render(request, "donate.html", db, status_code=status_code,
-                  amounts=AMOUNT_CHOICES, types=DONATION_TYPES, methods=PAYMENT_METHODS,
+                  amounts=donate_amounts(site), usage=donate_usage(site),
+                  faqs=split_lines(site["donate_faq"]), accounts=active_bank_accounts(db),
+                  is_open=site["donate_open"].strip() != "0",
+                  types=DONATION_TYPES, methods=PAYMENT_METHODS,
                   error=error, form=form or {})
 
 
@@ -138,7 +221,9 @@ def donate_submit(
     value = int(raw) if raw else 0
 
     error = None
-    if donation_type not in DONATION_TYPES or method not in PAYMENT_METHODS:
+    if get_settings(db)["donate_open"].strip() == "0":
+        error = "지금은 후원 신청을 받지 않아요."
+    elif donation_type not in DONATION_TYPES or method not in PAYMENT_METHODS:
         error = "후원 종류와 결제 방법을 골라 주세요."
     elif value < 1000:
         error = "후원 금액은 1,000원 이상으로 정해 주세요."
@@ -165,7 +250,8 @@ def donate_thanks(request: Request, db: Session = Depends(get_db)):
     donation = db.get(Donation, donation_id) if donation_id else None
     if donation is None:
         return RedirectResponse("/donate", status_code=303)
-    return render(request, "donate_thanks.html", db, donation=donation)
+    return render(request, "donate_thanks.html", db, donation=donation,
+                  accounts=active_bank_accounts(db))
 
 
 # ---------- 함께하기 (사람 모집) ----------
@@ -216,3 +302,21 @@ def mypage(request: Request, db: Session = Depends(get_db),
     donations = db.query(Donation).filter_by(user_id=user.id).order_by(Donation.id.desc()).all()
     return render(request, "mypage.html", db, user=user,
                   applications=applications, donations=donations)
+
+
+@router.post("/mypage/password")
+def change_password(request: Request, db: Session = Depends(get_db),
+                    user: User = Depends(require_permission("view")),
+                    current: str = Form(...), password: str = Form(...),
+                    password2: str = Form(...)):
+    if not verify_password(current, user.password_hash):
+        flash(request, "지금 비밀번호가 맞지 않아요.")
+    elif len(password) < 6:
+        flash(request, "새 비밀번호는 6글자 이상이어야 해요.")
+    elif password != password2:
+        flash(request, "새 비밀번호 확인이 달라요.")
+    else:
+        user.password_hash = hash_password(password)
+        db.commit()
+        flash(request, "비밀번호를 바꿨어요.")
+    return RedirectResponse("/mypage", status_code=303)
