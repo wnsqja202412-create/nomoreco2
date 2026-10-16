@@ -5,18 +5,18 @@
 <section class="page-hero">
   <div class="container">
     <p class="eyebrow">GET INVOLVED</p>
-    <h1>지구를 지키는 일, 함께해요</h1>
-    <p>자원봉사, 기자단, 온라인 서포터즈까지! 나에게 맞는 방법으로 NomoreCO2와 함께하세요.</p>
+    <h1>{{ site.join_title }}</h1>
+    <p>{{ site.join_lead|rich }}</p>
   </div>
 </section>
 
 <section class="section">
   <div class="container">
-    <h2 class="section-title">참여 방법</h2>
+    <h2 class="section-title">{{ site.join_ways_title }}</h2>
     <div class="pillars">
-      <div class="pillar"><span class="pillar-icon">🙋</span><h3>활동가로 참여</h3><p>아래 모집 공고에 지원하고 직접 현장에서 활동해요.</p></div>
-      <div class="pillar"><span class="pillar-icon">📱</span><h3>온라인으로 참여</h3><p>캠페인 글을 공유하고 친구들에게 알려 주세요.</p></div>
-      <div class="pillar"><span class="pillar-icon">🏠</span><h3>일상에서 참여</h3><p>전기 아끼기, 텀블러 쓰기로 오늘부터 탄소를 줄여요.</p></div>
+      {% for icon, title, text in site.join_ways|rows(3) %}
+        <div class="pillar"><span class="pillar-icon">{{ icon }}</span><h3>{{ title }}</h3><p>{{ text|rich }}</p></div>
+      {% endfor %}
     </div>
   </div>
 </section>
@@ -51,7 +51,7 @@
               </div>
               <label class="field">지원 동기<textarea name="message" rows="3" maxlength="1000" placeholder="왜 함께하고 싶은지 자유롭게 써 주세요"></textarea></label>
               <label class="check"><input type="checkbox" name="agree" value="1" required>
-                연락을 위해 이름과 연락처를 저장하는 데 동의하고, 보호자에게 허락을 받았어요.</label>
+                {{ site.join_agree }}</label>
               <button class="btn btn-donate">지원서 보내기</button>
             </form>
           </details>

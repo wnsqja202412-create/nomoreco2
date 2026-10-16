@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}홈{% endblock %} | NomoreCO2</title>
-  <meta name="description" content="이산화탄소를 줄여 기후변화를 막는 청소년 환경 NGO, NomoreCO2">
+  <meta name="description" content="{{ site.site_description }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
@@ -44,7 +44,7 @@
     <div class="container footer-inner">
       <div>
         <a class="logo logo-light" href="/">NomoreCO<sub>2</sub></a>
-        <p>이산화탄소를 줄여 기후변화를 막는 청소년 환경 NGO</p>
+        <p>{{ site.footer_tagline }}</p>
         <p class="muted">{{ site.address }} · {{ site.contact_email }}</p>
       </div>
       <div class="footer-links">
@@ -57,7 +57,7 @@
     </div>
     <div class="container footer-bottom">
       <p>{{ site.notice }}</p>
-      <p>© NomoreCO2</p>
+      <p>{{ site.copyright }}</p>
     </div>
   </footer>
 </body>

@@ -191,7 +191,7 @@ def _donate_page(request, db, error=None, form=None, status_code=200):
     site = get_settings(db)
     return render(request, "donate.html", db, status_code=status_code,
                   amounts=donate_amounts(site), usage=donate_usage(site),
-                  faqs=split_lines(site["donate_faq"]), accounts=active_bank_accounts(db),
+                  faqs=split_lines(site["donate_faq"]),
                   is_open=site["donate_open"].strip() != "0",
                   types=DONATION_TYPES, methods=PAYMENT_METHODS,
                   error=error, form=form or {})

@@ -6,23 +6,7 @@
     <p class="eyebrow">DONATE</p>
     <h1>{{ site.donate_title }}</h1>
     <p>{{ site.donate_lead|nl2br }}</p>
-    <div class="hero-actions">
-      {% if is_open %}<a class="btn btn-donate btn-lg" href="#donate-form">후원 신청하러 가기 ↓</a>{% endif %}
-      <a class="btn btn-ghost btn-lg" href="#accounts">후원 계좌 보기 ↓</a>
-    </div>
-  </div>
-</section>
-
-<!-- 0. 후원 계좌 -->
-<section class="section" id="accounts">
-  <div class="container narrow">
-    <h2 class="section-title">🏦 후원 계좌</h2>
-    {% if accounts %}
-      <p class="section-lead">아래 계좌로 직접 보내 주셔도 돼요. 보내는 사람 이름을 신청서와 똑같이 적어 주시면 확인이 빨라요.</p>
-      {% include "_accounts.html" %}
-    {% else %}
-      <p class="muted">후원 계좌를 준비하고 있어요.</p>
-    {% endif %}
+    {% if is_open %}<a class="btn btn-donate btn-lg" href="#donate-form">후원 신청하러 가기 ↓</a>{% endif %}
   </div>
 </section>
 
@@ -85,7 +69,7 @@
     <div class="methods">
       <div class="method"><h4>🏦 CMS 자동이체</h4><p>정기후원에 가장 편리해요. 매달 정한 날짜에 통장에서 자동으로 후원돼요.</p></div>
       <div class="method"><h4>💳 신용카드</h4><p>정기·일시후원 모두 가능해요. 매달 카드로 자동 결제돼요.</p></div>
-      <div class="method"><h4>📄 계좌이체</h4><p>일시후원할 때 <a href="#accounts">위의 후원 계좌</a>로 직접 보내요.</p></div>
+      <div class="method"><h4>📄 계좌이체</h4><p>신청서를 보내면 후원 계좌를 바로 알려 드려요.</p></div>
       <div class="method"><h4>📱 휴대폰 결제</h4><p>일시후원을 휴대폰 요금과 함께 낼 수 있어요.</p></div>
     </div>
   </div>

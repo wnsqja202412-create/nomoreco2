@@ -11,12 +11,15 @@
   {% endfor %}
 </div>
 <script>
-  document.querySelectorAll("[data-copy]").forEach(function (btn) {
-    btn.addEventListener("click", function () {
+  if (!window.copyBound) {
+    window.copyBound = true;
+    document.addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-copy]");
+      if (!btn) return;
       navigator.clipboard.writeText(btn.dataset.copy).then(function () {
         btn.textContent = "복사됨 ✓";
         setTimeout(function () { btn.textContent = "복사"; }, 1500);
       });
     });
-  });
+  }
 </script>

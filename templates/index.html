@@ -4,33 +4,37 @@
 {% block content %}
 <section class="hero">
   <div class="container hero-inner">
-    <p class="eyebrow">기후위기 대응 청소년 NGO</p>
+    <p class="eyebrow">{{ site.home_eyebrow }}</p>
     <h1>{{ site.hero_title }}</h1>
-    <p class="hero-sub">{{ site.hero_subtitle|nl2br }}</p>
+    <p class="hero-sub">{{ site.hero_subtitle|rich }}</p>
     <div class="hero-actions">
-      <a class="btn btn-donate btn-lg" href="/donate">지금 후원하기</a>
-      <a class="btn btn-ghost btn-lg" href="/join">함께 행동하기</a>
+      <a class="btn btn-donate btn-lg" href="/donate">{{ site.home_btn_donate }}</a>
+      <a class="btn btn-ghost btn-lg" href="/join">{{ site.home_btn_join }}</a>
     </div>
   </div>
 </section>
 
+{% set stat_labels = site.home_stat_labels|lines %}
+{% set extra = site.home_stat_extra|rows(3) %}
 <section class="stats">
   <div class="container stats-grid">
-    <div><strong>{{ stats.posts }}</strong><span>우리가 한 활동</span></div>
-    <div><strong>{{ stats.people }}</strong><span>함께하는 사람</span></div>
-    <div><strong>{{ stats.donations }}</strong><span>후원 신청</span></div>
-    <div><strong>420+<small>ppm</small></strong><span>지금 공기 속 CO₂ 농도</span></div>
+    {% for value in [stats.posts, stats.people, stats.donations] %}
+      <div><strong>{{ value }}</strong><span>{{ stat_labels[loop.index0] if stat_labels|length > loop.index0 }}</span></div>
+    {% endfor %}
+    {% for value, unit, label in extra %}
+      <div><strong>{{ value }}{% if unit %}<small>{{ unit }}</small>{% endif %}</strong><span>{{ label }}</span></div>
+    {% endfor %}
   </div>
 </section>
 
 <section class="section">
   <div class="container">
-    <h2 class="section-title">NomoreCO2가 하는 일</h2>
-    <p class="section-lead">이산화탄소를 줄이기 위해 세 가지 방법으로 행동해요.</p>
+    <h2 class="section-title">{{ site.home_work_title }}</h2>
+    <p class="section-lead">{{ site.home_work_lead }}</p>
     <div class="pillars">
-      <div class="pillar"><span class="pillar-icon">📢</span><h3>캠페인</h3><p>텀블러 쓰기, 전기 아끼기처럼 모두가 함께하는 탄소 줄이기 운동을 펼쳐요.</p></div>
-      <div class="pillar"><span class="pillar-icon">🌳</span><h3>현장활동</h3><p>나무를 심고, 플로깅을 하며 직접 지구를 돌봐요.</p></div>
-      <div class="pillar"><span class="pillar-icon">📚</span><h3>교육</h3><p>기후변화가 왜 생기는지 친구들과 동생들에게 쉽게 알려 줘요.</p></div>
+      {% for icon, title, text in site.home_pillars|rows(3) %}
+        <div class="pillar"><span class="pillar-icon">{{ icon }}</span><h3>{{ title }}</h3><p>{{ text|rich }}</p></div>
+      {% endfor %}
     </div>
   </div>
 </section>
@@ -38,7 +42,7 @@
 <section class="section section-soft">
   <div class="container">
     <div class="section-head">
-      <h2 class="section-title">최근 활동 소식</h2>
+      <h2 class="section-title">{{ site.home_news_title }}</h2>
       <a class="more" href="/activities">전체 보기 →</a>
     </div>
     <div class="cards">
@@ -50,7 +54,7 @@
 <section class="section">
   <div class="container">
     <div class="section-head">
-      <h2 class="section-title">지금 함께할 사람을 찾고 있어요</h2>
+      <h2 class="section-title">{{ site.home_recruit_title }}</h2>
       <a class="more" href="/join">모집 전체 보기 →</a>
     </div>
     <div class="recruit-list">
@@ -67,14 +71,9 @@
 
 <section class="section section-soft">
   <div class="container">
-    <h2 class="section-title">오늘부터 할 수 있는 탄소 줄이기</h2>
+    <h2 class="section-title">{{ site.home_tips_title }}</h2>
     <div class="tips">
-      <div class="tip">🚶 가까운 곳은 걷거나 자전거 타기</div>
-      <div class="tip">💡 안 쓰는 전등·플러그 끄기</div>
-      <div class="tip">🥤 일회용 컵 대신 텀블러</div>
-      <div class="tip">🍚 음식 남기지 않기</div>
-      <div class="tip">♻️ 분리배출 제대로 하기</div>
-      <div class="tip">👕 물건 오래 쓰고 나눠 쓰기</div>
+      {% for tip in site.home_tips|lines %}<div class="tip">{{ tip }}</div>{% endfor %}
     </div>
   </div>
 </section>
@@ -82,8 +81,8 @@
 <section class="cta-band">
   <div class="container cta-inner">
     <div>
-      <h2>당신의 후원이 지구의 온도를 지킵니다</h2>
-      <p>NomoreCO2는 시민의 후원만으로 독립적으로 활동해요.</p>
+      <h2>{{ site.home_cta_title }}</h2>
+      <p>{{ site.home_cta_text }}</p>
     </div>
     <a class="btn btn-donate btn-lg" href="/donate">후원하기</a>
   </div>

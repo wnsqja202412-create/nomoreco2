@@ -17,7 +17,9 @@
       {% if has_perm(user, 'manage_users') %}
         <a href="/admin/users" class="{{ 'active' if path.startswith('/admin/users') }}">회원·권한 관리</a>
       {% endif %}
-      <a href="/admin/settings" class="{{ 'active' if path.startswith('/admin/settings') }}">사이트 문구 설정</a>
+      {% if has_perm(user, 'edit_site') %}
+        <a href="/admin/settings" class="{{ 'active' if path.startswith('/admin/settings') }}">사이트 문구 설정</a>
+      {% endif %}
     </aside>
     <div class="admin-main">{% block admin %}{% endblock %}</div>
   </div>

@@ -9,7 +9,7 @@ from ..auth import (ROLE_PERMISSIONS, assignable_roles, can_manage_user, hash_pa
 from ..database import get_db
 from ..models import (APPLICATION_STATUSES, CATEGORIES, DONATION_STATUSES, Application,
                       BankAccount, BoardPost, Comment, Donation, Post, Recruitment, User, now_kst)
-from ..site import DONATE_FIELDS, SETTING_FIELDS, get_settings, save_settings
+from ..site import DONATE_FIELDS, SETTING_FIELDS, SETTING_GROUPS, get_settings, save_settings
 from ..templating import flash, render
 
 router = APIRouter(prefix="/admin", dependencies=[Depends(require_permission("admin_access"))])
@@ -18,6 +18,7 @@ user_manager = require_permission("manage_users")
 donate_manager = require_permission("manage_donate")
 bank_manager = require_permission("manage_bank")
 super_admin = require_permission("reset_password")
+site_editor = require_permission("edit_site")
 
 
 def go(url: str) -> RedirectResponse:
@@ -320,13 +321,14 @@ def user_profile(user_id: int, request: Request, db: Session = Depends(get_db),
 # ---------- 사이트 문구 설정 ----------
 
 @router.get("/settings")
-def settings_page(request: Request, db: Session = Depends(get_db), _=Depends(content_editor)):
-    return render(request, "admin/settings.html", db, fields=SETTING_FIELDS, values=get_settings(db))
+def settings_page(request: Request, db: Session = Depends(get_db), _=Depends(site_editor)):
+    return render(request, "admin/settings.html", db, groups=SETTING_GROUPS,
+                  values=get_settings(db))
 
 
 @router.post("/settings")
 async def settings_save(request: Request, db: Session = Depends(get_db),
-                        _=Depends(content_editor)):
+                        _=Depends(site_editor)):
     save_settings(db, SETTING_FIELDS, await request.form())
     flash(request, "사이트 문구를 저장했어요.")
     return go("/admin/settings")

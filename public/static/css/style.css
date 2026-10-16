@@ -309,3 +309,9 @@ h1, h2, h3 { line-height: 1.3; }
 .inline-details summary { list-style: none; }
 .inline-details summary::-webkit-details-marker { display: none; }
 .mini-form { margin-top: 8px; padding: 12px; background: var(--bg-soft); border-radius: 10px; gap: 8px; white-space: normal; }
+.settings-group { border: 1px solid var(--line); border-radius: var(--radius); padding: 0 18px; background: #fff; }
+.settings-group summary { cursor: pointer; font-weight: 700; padding: 14px 0; }
+.settings-group[open] { padding-bottom: 18px; }
+.account-dialog { border: 0; border-radius: var(--radius); padding: 28px; max-width: 520px; width: calc(100% - 32px); box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+.account-dialog::backdrop { background: rgba(0,0,0,.45); }
+.account-dialog h2 { margin-top: 0; }

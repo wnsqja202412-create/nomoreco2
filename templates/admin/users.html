@@ -11,7 +11,7 @@
       <td class="wrap">{% if role == 'superadmin' %}<b>모든 것</b> (아래 권한 전부 + 앞으로 생기는 권한까지){% else %}{{ role_permissions[role]|sort|join(', ') }}{% endif %}</td></tr>
   {% endfor %}
 </table></div>
-<p class="muted">view=보기 · apply=후원·지원 신청 · comment=댓글 · write=게시판 글쓰기 · admin_access=관리자 페이지 · content_edit=모든 글 수정·삭제 · manage_users=일반 회원 관리 · manage_donate=후원 페이지·후원 신청 관리 · manage_admins=관리자 역할 관리 · manage_bank=후원 계좌 관리 · reset_password=누구든 이름·비밀번호 바꾸기</p>
+<p class="muted">view=보기 · apply=후원·지원 신청 · comment=댓글 · write=게시판 글쓰기 · admin_access=관리자 페이지 · content_edit=모든 글 수정·삭제 · manage_users=일반 회원 관리 · manage_donate=후원 페이지·후원 신청 관리 · manage_admins=관리자 역할 관리 · manage_bank=후원 계좌 관리 · reset_password=누구든 이름·비밀번호 바꾸기 · edit_site=사이트 문구 설정</p>
 <ul class="muted">
   <li>관리자는 <b>일반 사용자</b>의 역할만 바꾸거나 지울 수 있어요. 관리자끼리는 서로 못 건드려요.</li>
   <li>총관리자 계정은 총관리자만 바꿀 수 있어요. 자기 자신의 역할은 누구도 바꿀 수 없어요.</li>

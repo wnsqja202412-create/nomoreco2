@@ -12,12 +12,30 @@
       <tr><th>결제 방법</th><td>{{ donation.method }}</td></tr>
       <tr><th>신청일</th><td>{{ donation.created_at|datefmt }}</td></tr>
     </table>
-    {% if donation.method == '계좌이체' and accounts %}
-      <h2 class="sub-title">아래 계좌로 보내 주세요</h2>
+    {% if accounts %}
+      <h2 class="sub-title">🏦 후원 계좌</h2>
+      <p>{{ site.donate_account_message|rich }}</p>
       {% include "_accounts.html" %}
+      <p><button type="button" class="btn btn-outline" onclick="document.getElementById('account-dialog').showModal()">계좌 안내 다시 보기</button></p>
     {% endif %}
     {% if site.donate_notice.strip() %}<p class="muted">※ {{ site.donate_notice }}</p>{% endif %}
     <a class="btn btn-primary" href="/activities">우리가 하는 일 보러 가기</a>
   </div>
 </section>
+
+{% if accounts %}
+<dialog id="account-dialog" class="account-dialog">
+  <h2>🏦 후원 계좌 안내</h2>
+  <p><b>{{ donation.amount|won }}</b>{% if donation.donation_type == '정기후원' %} (매달){% endif %} · {{ donation.donor_name }}님</p>
+  <p>{{ site.donate_account_message|rich }}</p>
+  {% include "_accounts.html" %}
+  <form method="dialog" class="center"><button class="btn btn-primary">확인</button></form>
+</dialog>
+<script>
+  (function () {
+    var dlg = document.getElementById("account-dialog");
+    if (dlg && dlg.showModal) dlg.showModal();
+  })();
+</script>
+{% endif %}
 {% endblock %}

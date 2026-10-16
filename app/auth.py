@@ -23,7 +23,7 @@ _ADMIN_PERMS = _USER_PERMS | {"admin_access", "content_edit", "manage_users", "m
 
 # 역할별 권한표 (총관리자는 여기 없는 권한까지 전부 가져요)
 ROLE_PERMISSIONS = {
-    ROLE_SUPER: _ADMIN_PERMS | {"manage_admins", "manage_bank", "reset_password"},
+    ROLE_SUPER: _ADMIN_PERMS | {"manage_admins", "manage_bank", "reset_password", "edit_site"},
     ROLE_ADMIN: _ADMIN_PERMS,
     ROLE_USER: _USER_PERMS,
 }
