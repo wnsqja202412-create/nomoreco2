@@ -3,20 +3,24 @@ from datetime import timedelta
 from types import SimpleNamespace
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from starlette.datastructures import UploadFile
 from fastapi.responses import RedirectResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from starlette.datastructures import UploadFile
 
-from ..auth import (ROLE_PERMISSIONS, assignable_roles, can_edit_profile, can_manage_user,
-                    can_moderate, hash_password, is_timed_out, require_permission)
+from .. import wallet
+from ..auth import (ROLE_PERMISSIONS, assignable_roles, can_edit_profile, can_manage_money,
+                    can_manage_user, can_moderate, hash_password, is_timed_out,
+                    require_permission)
 from ..database import get_db
 from ..images import delete_image_url, photo_upload, resolve_image
 from ..models import (APPLICATION_STATUSES, CATEGORIES, DONATION_STATUSES, INQUIRY_STATUSES,
-                      Application, BankAccount, BoardPost, Comment, Donation, Image, Inquiry,
-                      InquiryMessage, Post, Recruitment, User, now_kst)
-from ..site import DONATE_FIELDS, SETTING_FIELDS, SETTING_GROUPS, get_settings, save_settings
+                      Application, BankAccount, BoardPost, Coinflip, Comment, Donation, Image,
+                      Inquiry, InquiryMessage, MoneyLog, Post, Recruitment, User, Wallet, now_kst)
+from ..site import (DONATE_FIELDS, PLAYGROUND_FIELDS, SETTING_FIELDS, SETTING_GROUPS,
+                    get_settings, save_settings)
 from ..templating import flash, render
+from .playground import cancel_flip
 
 router = APIRouter(prefix="/admin", dependencies=[Depends(require_permission("admin_access"))])
 content_editor = require_permission("content_edit")
@@ -28,6 +32,8 @@ bank_manager = require_permission("manage_bank")
 super_admin = require_permission("reset_password")
 moderator = require_permission("moderate")
 site_editor = require_permission("edit_site")
+money_manager = require_permission("manage_money")
+playground_manager = require_permission("manage_playground")
 
 # 타임아웃 시간 (보여 줄 이름, 분)
 TIMEOUT_CHOICES = [("10분", 10), ("1시간", 60), ("1일", 60 * 24), ("7일", 60 * 24 * 7),
@@ -336,6 +342,7 @@ def user_delete(user_id: int, request: Request, db: Session = Depends(get_db),
         return go("/admin/users")
     for model in (Application, Donation, Comment, BoardPost, Inquiry, InquiryMessage, Image):
         db.query(model).filter_by(user_id=target.id).update({"user_id": None})
+    wallet.forget_user(db, target.id)
     db.delete(target)
     db.commit()
     flash(request, f"{target.username} 회원을 지웠어요.")
@@ -558,3 +565,69 @@ def account_delete(item_id: int, request: Request, db: Session = Depends(get_db)
     db.commit()
     flash(request, "후원 계좌를 지웠어요.")
     return go("/admin/donate#accounts")
+
+
+# ---------- 놀이터 관리 ----------
+# 돈 관리: 관리자 이상 (내 돈 + 나보다 낮은 등급) / 열기·닫기·하루 용돈: 총관리자 이상
+
+@router.get("/playground")
+def playground_admin(request: Request, db: Session = Depends(get_db),
+                     me: User = Depends(money_manager)):
+    users_ = db.query(User).order_by(User.id).all()
+    wallets = {w.user_id: w for w in db.query(Wallet).all()}
+    logs = db.query(MoneyLog).order_by(MoneyLog.id.desc()).limit(30).all()
+    names = {u.id: u.name for u in users_}
+    open_flips = (db.query(Coinflip).filter(Coinflip.status == "open")
+                  .order_by(Coinflip.id.desc()).all())
+    return render(request, "admin/playground.html", db, users=users_, wallets=wallets,
+                  logs=logs, names=names, open_flips=open_flips, fields=PLAYGROUND_FIELDS,
+                  values=get_settings(db), can_money=can_manage_money,
+                  is_open=wallet.playground_open(db), today=str(now_kst().date()))
+
+
+@router.post("/playground/settings")
+async def playground_settings(request: Request, db: Session = Depends(get_db),
+                              _=Depends(playground_manager)):
+    save_settings(db, PLAYGROUND_FIELDS, await request.form())
+    flash(request, "놀이터 설정을 저장했어요. (지금: " +
+          ("열림" if wallet.playground_open(db) else "닫힘") + ")")
+    return go("/admin/playground")
+
+
+@router.post("/playground/money/{user_id}")
+def playground_money(user_id: int, request: Request, db: Session = Depends(get_db),
+                     me: User = Depends(money_manager), mode: str = Form(...),
+                     amount: str = Form(...), reason: str = Form("")):
+    target = get_or_404(db, User, user_id)
+    if not can_manage_money(me, target):
+        flash(request, "관리자는 자기 돈을 바꿀 수 없어요." if target.id == me.id
+              else "나보다 등급이 같거나 높은 사람의 돈은 바꿀 수 없어요.")
+        return go("/admin/playground")
+    digits = "".join(ch for ch in amount if ch.isdigit())
+    value = int(digits) if digits else 0
+    note = f"관리자 {me.name}" + (f": {reason.strip()[:100]}" if reason.strip() else "")
+    wallet.ensure_wallet(db, target.id)
+    if mode == "set":
+        wallet.set_balance(db, target.id, value, f"{note} (금액 정하기)", me.id)
+    elif mode == "add":
+        wallet.change(db, target.id, value, f"{note} (주기)", me.id)
+    elif mode == "sub":
+        current = db.get(Wallet, target.id).balance
+        wallet.change(db, target.id, -min(value, current), f"{note} (빼기)", me.id)
+    else:
+        raise HTTPException(400)
+    db.commit()
+    flash(request, f"{target.name}님의 돈을 바꿨어요. 지금 {db.get(Wallet, target.id).balance:,}원")
+    return go("/admin/playground")
+
+
+@router.post("/playground/coinflip/{flip_id}/cancel")
+def playground_cancel_flip(flip_id: int, request: Request, db: Session = Depends(get_db),
+                           me: User = Depends(money_manager)):
+    flip = get_or_404(db, Coinflip, flip_id)
+    if cancel_flip(db, flip, f"코인플립 #{flip.id} 관리자 취소 (돌려받음)", me.id):
+        db.commit()
+        flash(request, f"코인플립 #{flip.id}을(를) 취소하고 판돈을 돌려줬어요.")
+    else:
+        flash(request, "이미 끝난 게임이에요.")
+    return go("/admin/playground")

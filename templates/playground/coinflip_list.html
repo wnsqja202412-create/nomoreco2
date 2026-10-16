@@ -1,0 +1,43 @@
+{% extends "playground/layout.html" %}
+{% block title %}코인플립{% endblock %}
+{% block play %}
+<div class="section-head">
+  <h2 class="section-title" style="margin:0">🪙 코인플립 보기</h2>
+  <a class="btn btn-primary" href="/playground/coinflip/new">+ 코인플립 만들기</a>
+</div>
+<p class="muted">같은 판돈을 걸고 들어가면 5초 뒤에 이긴 사람이 정해져요. 이긴 사람은 판돈 2배를 가져가요!</p>
+
+<div class="flip-grid">
+  {% for f in open_flips %}
+    <div class="flip-card {{ 'flip-mine' if f.creator_id == me.id }}">
+      <p class="flip-bet">{{ '{:,}'.format(f.bet) }}원</p>
+      <p><b>{{ f.creator_name }}</b>{% if f.creator_id == me.id %} (나){% endif %}</p>
+      {% if f.message %}<p class="flip-msg">“{{ f.message }}”</p>{% endif %}
+      <div class="actions">
+        {% if f.creator_id == me.id %}
+          <a class="btn btn-sm btn-outline" href="/playground/coinflip/{{ f.id }}">기다리는 중…</a>
+          <form method="post" action="/playground/coinflip/{{ f.id }}/cancel" class="inline" onsubmit="return confirm('취소하고 판돈을 돌려받을까요?')">
+            <button class="btn btn-sm btn-danger">취소</button>
+          </form>
+        {% else %}
+          <form method="post" action="/playground/coinflip/{{ f.id }}/join" class="inline" onsubmit="return confirm('{{ '{:,}'.format(f.bet) }}원을 걸고 들어갈까요?')">
+            <button class="btn btn-sm btn-donate" {{ 'disabled' if wallet.balance < f.bet }}>{{ '들어가기' if wallet.balance >= f.bet else '돈이 모자라요' }}</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  {% else %}
+    <p class="muted">지금 열린 코인플립이 없어요. 하나 만들어 보세요!</p>
+  {% endfor %}
+</div>
+
+<h2 class="sub-title">최근 결과</h2>
+<div class="table-wrap"><table class="table">
+  <tr><th>판돈</th><th>대결</th><th>이긴 사람</th><th>시간</th></tr>
+  {% for f in recent %}
+    <tr><td>{{ '{:,}'.format(f.bet) }}원</td>
+      <td><a href="/playground/coinflip/{{ f.id }}">{{ f.creator_name }} vs {{ f.joiner_name }}</a></td>
+      <td>🏆 {{ f.winner_name }}</td><td>{{ f.finished_at|datetimefmt }}</td></tr>
+  {% else %}<tr><td colspan="4" class="muted">아직 없어요</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

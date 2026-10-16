@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+{% set path = request.url.path %}
+<section class="page-hero page-hero-play">
+  <div class="container play-hero">
+    <div>
+      <p class="eyebrow">PLAYGROUND</p>
+      <h1>🛝 놀이터</h1>
+      <p>놀이터 돈은 <b>진짜 돈이 아닌 가상 머니</b>예요. 재미로만 즐겨 주세요!</p>
+    </div>
+    <div class="play-wallet">
+      <span>{{ me.name }}님의 돈</span>
+      <b><span id="my-balance">{{ '{:,}'.format(shown_balance if shown_balance is defined else wallet.balance) }}</span>원</b>
+      <form method="post" action="/playground/daily">
+        {% if can_claim %}
+          <button class="btn btn-donate">💰 돈 줘! (+{{ '{:,}'.format(daily) }}원)</button>
+        {% else %}
+          <button class="btn btn-ghost" disabled title="밤 12시가 지나면 다시 받을 수 있어요">오늘 용돈 받음 ✓</button>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="tabs" style="margin-bottom:24px">
+      <a href="/playground" class="{{ 'active' if path == '/playground' }}">🏠 놀이터 홈</a>
+      <a href="/playground/coinflip" class="{{ 'active' if path.startswith('/playground/coinflip') }}">🪙 코인플립</a>
+    </div>
+    {% block play %}{% endblock %}
+  </div>
+</section>
+{% endblock %}

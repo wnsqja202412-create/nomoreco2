@@ -1,0 +1,69 @@
+{% extends "admin/layout.html" %}
+{% block title %}놀이터 관리{% endblock %}
+{% block admin %}
+<div class="section-head">
+  <h1 style="margin:0">🛝 놀이터 관리</h1>
+  <span class="badge {{ 'badge-open' if is_open else 'badge-banned' }}">{{ '열림' if is_open else '닫힘 (아무도 못 들어가요)' }}</span>
+</div>
+
+{% if has_perm(user, 'manage_playground') %}
+  <h2 class="sub-title">놀이터 설정 (총관리자 이상)</h2>
+  <form method="post" action="/admin/playground/settings" class="form">
+    <div class="form-grid">
+      <label class="field">놀이터
+        <select name="playground_enabled">
+          <option value="1" {{ 'selected' if is_open }}>열기</option>
+          <option value="0" {{ 'selected' if not is_open }}>닫기 — 등급과 상관없이 아무도 못 들어가요</option>
+        </select>
+      </label>
+      <label class="field">하루 용돈 (원)<input type="number" name="playground_daily" min="0" step="100" value="{{ values.playground_daily }}"></label>
+    </div>
+    <div><button class="btn btn-primary">설정 저장</button></div>
+  </form>
+{% endif %}
+
+<h2 class="sub-title">회원 돈 관리</h2>
+<p class="muted">나보다 낮은 등급 회원의 돈을 바꿀 수 있어요. 내 돈은 총관리자 이상만 바꿀 수 있어요. 바꾼 내용은 모두 아래 기록에 남아요.</p>
+<div class="table-wrap"><table class="table">
+  <tr><th>회원</th><th>등급</th><th>돈</th><th>오늘 용돈</th><th>바꾸기</th></tr>
+  {% for u in users %}
+    {% set w = wallets.get(u.id) %}
+    <tr>
+      <td><b>{{ u.name }}</b> <small class="muted">{{ u.username }}</small>{% if u.id == user.id %} (나){% endif %}</td>
+      <td>{{ ROLE_LABELS.get(u.role, u.role) }}</td>
+      <td><b>{{ '{:,}'.format(w.balance if w else 0) }}원</b></td>
+      <td>{{ '받음' if w and w.last_daily and w.last_daily|string == today else '—' }}</td>
+      <td>
+        {% if can_money(user, u) %}
+          <form method="post" action="/admin/playground/money/{{ u.id }}" class="money-form">
+            <select name="mode"><option value="add">+ 주기</option><option value="sub">− 빼기</option><option value="set">= 정하기</option></select>
+            <input class="cell-input" type="number" name="amount" min="0" step="100" required size="7" placeholder="금액">
+            <input class="cell-input" name="reason" maxlength="100" size="10" placeholder="이유 (선택)">
+            <button class="btn btn-sm btn-primary">적용</button>
+          </form>
+        {% else %}<span class="muted">🔒</span>{% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+</table></div>
+
+<h2 class="sub-title">기다리는 코인플립</h2>
+<div class="table-wrap"><table class="table">
+  <tr><th>번호</th><th>만든 사람</th><th>판돈</th><th>한마디</th><th>만든 시간</th><th></th></tr>
+  {% for f in open_flips %}
+    <tr><td>#{{ f.id }}</td><td>{{ f.creator_name }}</td><td>{{ '{:,}'.format(f.bet) }}원</td><td class="wrap">{{ f.message }}</td>
+      <td>{{ f.created_at|datetimefmt }}</td>
+      <td><form method="post" action="/admin/playground/coinflip/{{ f.id }}/cancel" class="inline" onsubmit="return confirm('취소하고 판돈을 돌려줄까요?')"><button class="btn btn-sm btn-danger">취소·환불</button></form></td></tr>
+  {% else %}<tr><td colspan="6" class="muted">없어요</td></tr>{% endfor %}
+</table></div>
+
+<h2 class="sub-title">최근 돈 기록 (30개)</h2>
+<div class="table-wrap"><table class="table">
+  <tr><th>시간</th><th>회원</th><th>내용</th><th>금액</th><th>남은 돈</th></tr>
+  {% for l in logs %}
+    <tr><td>{{ l.created_at|datetimefmt }}</td><td>{{ names.get(l.user_id, '(탈퇴)') }}</td><td class="wrap">{{ l.reason }}</td>
+      <td class="{{ 'money-plus' if l.amount > 0 else 'money-minus' }}">{{ '{:+,}'.format(l.amount) }}원</td>
+      <td>{{ '{:,}'.format(l.balance_after) }}원</td></tr>
+  {% else %}<tr><td colspan="5" class="muted">아직 기록이 없어요</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

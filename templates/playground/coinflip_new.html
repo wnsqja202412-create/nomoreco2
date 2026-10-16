@@ -1,0 +1,24 @@
+{% extends "playground/layout.html" %}
+{% block title %}코인플립 만들기{% endblock %}
+{% block play %}
+<div class="narrow">
+  <h2 class="section-title">🪙 코인플립 만들기</h2>
+  <p class="muted">판돈은 만들 때 미리 빠져요. 아무도 안 들어오면 취소해서 돌려받을 수 있어요.</p>
+  <form method="post" class="form">
+    <label class="field">판돈 (원, {{ '{:,}'.format(min_bet) }}원 이상 · 지금 {{ '{:,}'.format(wallet.balance) }}원 있어요)
+      <input type="number" name="bet" required min="{{ min_bet }}" max="{{ wallet.balance }}" step="100" placeholder="예: 1000">
+    </label>
+    <div class="choice-row">
+      {% for v in [500, 1000, 2000, 5000] %}{% if v <= wallet.balance %}
+        <button type="button" class="btn btn-sm btn-outline" onclick="this.form.bet.value={{ v }}">{{ '{:,}'.format(v) }}원</button>
+      {% endif %}{% endfor %}
+      {% if wallet.balance >= min_bet %}<button type="button" class="btn btn-sm btn-outline" onclick="this.form.bet.value={{ wallet.balance }}">올인!</button>{% endif %}
+    </div>
+    <label class="field">한마디 (선택, {{ 100 }}글자까지)<input name="message" maxlength="100" placeholder="예: 덤벼라!"></label>
+    <div class="actions">
+      <button class="btn btn-donate" {{ 'disabled' if wallet.balance < min_bet }}>코인플립 만들기</button>
+      <a class="btn btn-outline" href="/playground/coinflip">취소</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

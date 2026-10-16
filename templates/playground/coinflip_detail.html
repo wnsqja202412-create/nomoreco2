@@ -1,0 +1,96 @@
+{% extends "playground/layout.html" %}
+{% block title %}코인플립 #{{ flip.id }}{% endblock %}
+{% block play %}
+<div class="narrow center">
+  <a class="more" href="/playground/coinflip">← 코인플립 목록</a>
+  <h2 class="section-title" style="margin-top:12px">🪙 코인플립 #{{ flip.id }} · {{ '{:,}'.format(flip.bet) }}원</h2>
+  {% if flip.message %}<p class="flip-msg">“{{ flip.message }}” — {{ flip.creator_name }}</p>{% endif %}
+
+  <div class="versus">
+    <span class="vs-name">{{ flip.creator_name }}</span>
+    <span class="vs">VS</span>
+    <span class="vs-name" id="joiner-name">{{ flip.joiner_name or '???' }}</span>
+  </div>
+
+  <div class="flip-box" id="flip-box">{% if flip.status == 'done' and not autoplay %}🏆 {{ flip.winner_name }}{% else %}🪙{% endif %}</div>
+  <p class="lead" id="flip-result">
+    {% if flip.status == 'open' %}
+      {% if flip.creator_id == me.id %}상대를 기다리고 있어요… 누가 들어오면 바로 시작해요!{% else %}{{ '{:,}'.format(flip.bet) }}원을 걸고 들어가 보세요!{% endif %}
+    {% elif flip.status == 'cancelled' %}취소된 게임이에요.
+    {% elif not autoplay %}<b>{{ flip.winner_name }}</b>님이 {{ '{:,}'.format(flip.bet * 2) }}원을 가져갔어요!
+    {% endif %}
+  </p>
+
+  <div class="actions" style="justify-content:center">
+    {% if flip.status == 'open' and flip.creator_id != me.id %}
+      <form method="post" action="/playground/coinflip/{{ flip.id }}/join" class="inline">
+        <button class="btn btn-donate btn-lg" {{ 'disabled' if wallet.balance < flip.bet }}>{{ '들어가기!' if wallet.balance >= flip.bet else '돈이 모자라요' }}</button>
+      </form>
+    {% elif flip.status == 'open' %}
+      <form method="post" action="/playground/coinflip/{{ flip.id }}/cancel" class="inline" onsubmit="return confirm('취소하고 판돈을 돌려받을까요?')">
+        <button class="btn btn-danger">취소하고 돌려받기</button>
+      </form>
+    {% elif flip.status == 'done' %}
+      <button type="button" class="btn btn-outline" id="replay" {{ 'hidden' if autoplay }}>🔁 다시 보기</button>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  (function () {
+    var box = document.getElementById("flip-box");
+    var result = document.getElementById("flip-result");
+    var creator = {{ flip.creator_name|tojson }};
+    var bet = {{ flip.bet|tojson }};
+
+    // 이름을 번갈아 보여 주다가(점점 느려지며) 5초쯤 뒤에 이긴 사람을 보여 줘요.
+    // 결과는 이미 서버가 정해 놨어요 - 이건 보여 주기만 해요.
+    function play(joiner, winner, done) {
+      var elapsed = 0, delay = 60, i = 0;
+      box.classList.remove("flip-win");
+      result.textContent = "두근두근…";
+      (function step() {
+        box.textContent = (i++ % 2 === 0) ? creator : joiner;
+        elapsed += delay;
+        delay = Math.min(delay * 1.1, 550);
+        if (elapsed < 5000) { setTimeout(step, delay); return; }
+        setTimeout(function () {
+          box.textContent = "🏆 " + winner;
+          box.classList.add("flip-win");
+          result.innerHTML = "";
+          var b = document.createElement("b"); b.textContent = winner;
+          result.appendChild(b);
+          result.appendChild(document.createTextNode("님이 " + (bet * 2).toLocaleString() + "원을 가져갔어요!"));
+          if (done) done();
+        }, delay);
+      })();
+    }
+
+    {% if flip.status == 'done' %}
+      var joiner = {{ flip.joiner_name|tojson }}, winner = {{ flip.winner_name|tojson }};
+      var replay = document.getElementById("replay");
+      replay.addEventListener("click", function () { replay.hidden = true; play(joiner, winner, function () { replay.hidden = false; }); });
+      {% if autoplay %}
+        play(joiner, winner, function () {
+          replay.hidden = false;
+          document.getElementById("my-balance").textContent = ({{ wallet.balance|tojson }}).toLocaleString();
+        });
+      {% endif %}
+    {% elif flip.status == 'open' and flip.creator_id == me.id %}
+      // 만든 사람: 2초마다 누가 들어왔는지 물어봐요.
+      var timer = setInterval(function () {
+        fetch("/playground/coinflip/{{ flip.id }}/status", { headers: { "Accept": "application/json" } })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (data) {
+            if (!data || data.status === "open") return;
+            clearInterval(timer);
+            if (data.status !== "done") { location.reload(); return; }
+            document.getElementById("joiner-name").textContent = data.joiner;
+            play(data.joiner, data.winner, function () { setTimeout(function () { location.reload(); }, 2500); });
+          })
+          .catch(function () {});
+      }, 2000);
+    {% endif %}
+  })();
+</script>
+{% endblock %}

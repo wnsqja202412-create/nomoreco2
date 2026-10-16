@@ -115,9 +115,17 @@ DONATE_FIELDS = [
 ]
 
 
+# 놀이터 설정 - 총관리자 이상이 '놀이터 관리'에서 바꿔요.
+PLAYGROUND_FIELDS = [
+    ("playground_enabled", "놀이터 열기 (1 = 열기, 0 = 닫기)", "1", False),
+    ("playground_daily", "하루 용돈 (원)", "5000", False),
+]
+
+
 def get_settings(db: Session) -> dict:
     saved = {s.key: s.value for s in db.query(Setting).all()}
-    return {key: saved.get(key, default) for key, _, default, _ in SETTING_FIELDS + DONATE_FIELDS}
+    return {key: saved.get(key, default)
+            for key, _, default, _ in SETTING_FIELDS + DONATE_FIELDS + PLAYGROUND_FIELDS}
 
 
 def save_settings(db: Session, fields: list, form) -> None:

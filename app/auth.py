@@ -22,11 +22,12 @@ ROLE_SUPER = "superadmin"
 ROLE_ADMIN = "admin"
 ROLE_USER = "user"
 
-_USER_PERMS = {"view", "apply", "comment", "write", "inquiry"}
+_USER_PERMS = {"view", "apply", "comment", "write", "inquiry", "play"}
 _ADMIN_PERMS = _USER_PERMS | {"admin_access", "content_edit", "manage_users",
-                              "manage_donations", "manage_inquiries"}
+                              "manage_donations", "manage_inquiries", "manage_money"}
 _SUPER_PERMS = _ADMIN_PERMS | {"manage_donate", "manage_bank", "reset_password", "edit_site",
-                               "moderate", "manage_admins"}
+                               "moderate", "manage_admins", "manage_playground",
+                               "manage_own_money"}
 
 # 역할별 권한표 (높은 등급부터. 소유자는 여기 없는 권한까지 전부 가져요)
 ROLE_PERMISSIONS = {
@@ -116,6 +117,16 @@ def can_moderate(me: User | None, target: User) -> bool:
 def can_edit_profile(me: User | None, target: User) -> bool:
     """남의 이름·비밀번호 다시 정해 주기 (총관리자 이상)"""
     return outranks(me, target, "reset_password")
+
+
+def can_manage_money(me: User | None, target: User) -> bool:
+    """놀이터 돈 관리 (관리자 이상) - 나보다 낮은 등급의 돈.
+    내 돈은 총관리자 이상만 바꿀 수 있어요. (관리자는 자기 돈을 못 바꿔요)"""
+    if me is None or not has_permission(me, "manage_money"):
+        return False
+    if target.id == me.id:
+        return has_permission(me, "manage_own_money")
+    return rank(me) > rank(target)
 
 
 def assignable_roles(me: User | None) -> list[str]:

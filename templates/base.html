@@ -23,6 +23,9 @@
         <a href="/board" class="{{ 'active' if path.startswith('/board') }}">게시판</a>
         <a href="/join" class="{{ 'active' if path.startswith('/join') }}">함께하기</a>
         <a href="/inquiry" class="{{ 'active' if path.startswith('/inquiry') }}">문의하기</a>
+        {% if site.playground_enabled.strip() != '0' %}
+          <a href="/playground" class="{{ 'active' if path.startswith('/playground') }}">놀이터</a>
+        {% endif %}
         {% if user %}
           {% if has_perm(user, 'admin_access') %}
             <a href="/admin" class="nav-admin {{ 'active' if path.startswith('/admin') }}">관리자</a>

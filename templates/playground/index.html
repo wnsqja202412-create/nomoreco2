@@ -1,0 +1,21 @@
+{% extends "playground/layout.html" %}
+{% block title %}놀이터{% endblock %}
+{% block play %}
+<h2 class="section-title">게임 고르기</h2>
+<div class="pillars">
+  {% for name, icon, text, url in games %}
+    <a class="pillar game-card" href="{{ url }}"><span class="pillar-icon">{{ icon }}</span><h3>{{ name }}</h3><p>{{ text }}</p></a>
+  {% endfor %}
+  <div class="pillar game-card game-soon"><span class="pillar-icon">🎲</span><h3>곧 나와요</h3><p>새 게임을 준비하고 있어요.</p></div>
+</div>
+
+<h2 class="sub-title">내 돈 기록</h2>
+<div class="table-wrap"><table class="table">
+  <tr><th>시간</th><th>내용</th><th>금액</th><th>남은 돈</th></tr>
+  {% for l in logs %}
+    <tr><td>{{ l.created_at|datetimefmt }}</td><td class="wrap">{{ l.reason }}</td>
+      <td class="{{ 'money-plus' if l.amount > 0 else 'money-minus' }}">{{ '{:+,}'.format(l.amount) }}원</td>
+      <td>{{ '{:,}'.format(l.balance_after) }}원</td></tr>
+  {% else %}<tr><td colspan="4" class="muted">아직 기록이 없어요. 위의 💰 돈 줘! 버튼부터 눌러 보세요.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

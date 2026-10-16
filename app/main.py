@@ -9,7 +9,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from .auth import Forbidden, LoginRequired
 from .database import Base, SessionLocal, add_missing_columns, engine
-from .routers import admin, auth, public
+from .routers import admin, auth, playground, public
 from .seed import seed
 from .templating import render
 
@@ -54,6 +54,7 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "public" / "static", check
 app.include_router(public.router)
 app.include_router(auth.router)
 app.include_router(admin.router)
+app.include_router(playground.router)
 
 
 @app.exception_handler(LoginRequired)
@@ -73,6 +74,11 @@ def _error_page(request: Request, status_code: int, message: str):
 @app.exception_handler(Forbidden)
 async def forbidden_handler(request: Request, exc: Forbidden):
     return _error_page(request, 403, "이 일을 할 권한이 없어요.")
+
+
+@app.exception_handler(playground.PlaygroundClosed)
+async def playground_closed_handler(request: Request, exc: playground.PlaygroundClosed):
+    return _error_page(request, 403, "🛝 놀이터가 지금 닫혀 있어요. 나중에 다시 와 주세요!")
 
 
 @app.exception_handler(StarletteHTTPException)

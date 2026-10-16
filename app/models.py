@@ -1,7 +1,8 @@
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, LargeBinary, String, Text
+from sqlalchemy import (Boolean, Date, DateTime, ForeignKey, Integer, LargeBinary, String,
+                        Text)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -187,6 +188,51 @@ class Image(Base):
     data: Mapped[bytes] = mapped_column(LargeBinary)
     size: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_kst)
+
+
+# ---------- 놀이터 (가상 머니 - 진짜 돈이 아니에요) ----------
+
+class Wallet(Base):
+    """놀이터 지갑 - 모든 놀이터 게임이 같이 써요."""
+
+    __tablename__ = "wallets"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    balance: Mapped[int] = mapped_column(Integer, default=0)
+    last_daily: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+
+
+class MoneyLog(Base):
+    """돈이 들어오고 나간 기록"""
+
+    __tablename__ = "money_logs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    amount: Mapped[int] = mapped_column(Integer)
+    balance_after: Mapped[int] = mapped_column(Integer)
+    reason: Mapped[str] = mapped_column(String(200))
+    actor_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_kst)
+
+
+class Coinflip(Base):
+    """코인플립 한 판 - 만든 사람과 들어온 사람 중 한 명이 판돈 2배를 가져가요."""
+
+    __tablename__ = "coinflips"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    creator_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    creator_name: Mapped[str] = mapped_column(String(50))
+    joiner_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    joiner_name: Mapped[str] = mapped_column(String(50), default="")
+    winner_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    winner_name: Mapped[str] = mapped_column(String(50), default="")
+    bet: Mapped[int] = mapped_column(Integer)
+    message: Mapped[str] = mapped_column(String(100), default="")
+    status: Mapped[str] = mapped_column(String(20), default="open", index=True)  # open/done/cancelled
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_kst)
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
 
 class BankAccount(Base):
