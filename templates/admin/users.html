@@ -3,40 +3,74 @@
 {% block admin %}
 <h1>회원·권한 관리</h1>
 
-<h2 class="sub-title">권한표</h2>
+<h2 class="sub-title">등급과 권한표 (위가 높은 등급)</h2>
 <div class="table-wrap"><table class="table">
-  <tr><th>역할</th><th>할 수 있는 일</th></tr>
+  <tr><th>등급</th><th>할 수 있는 일</th></tr>
   {% for role in roles %}
     <tr><td><b>{{ ROLE_LABELS.get(role, role) }}</b></td>
-      <td class="wrap">{% if role == 'superadmin' %}<b>모든 것</b> (아래 권한 전부 + 앞으로 생기는 권한까지){% else %}{{ role_permissions[role]|sort|join(', ') }}{% endif %}</td></tr>
+      <td class="wrap">{% if role == 'owner' %}<b>모든 것</b> — 총관리자가 할 수 있는 모든 일 + 총관리자 관리 (서버에 딱 한 명, 아무도 못 바꿔요){% else %}{{ role_permissions[role]|sort|join(', ') }}{% endif %}</td></tr>
   {% endfor %}
 </table></div>
-<p class="muted">view=보기 · apply=후원·지원 신청 · comment=댓글 · write=게시판 글쓰기 · admin_access=관리자 페이지 · content_edit=모든 글 수정·삭제 · manage_users=일반 회원 관리 · manage_donate=후원 페이지·후원 신청 관리 · manage_admins=관리자 역할 관리 · manage_bank=후원 계좌 관리 · reset_password=누구든 이름·비밀번호 바꾸기 · edit_site=사이트 문구 설정</p>
+<p class="muted">view=보기 · apply=후원·지원 신청 · comment=댓글 · write=게시판 글쓰기 · inquiry=문의하기 · admin_access=관리자 페이지 · content_edit=모든 글 수정·삭제 · manage_users=아래 등급 회원 관리 · manage_donations=후원 신청 확인 · manage_inquiries=문의 답변 · manage_donate=후원 페이지 관리 · manage_bank=후원 계좌 · reset_password=아래 등급 이름·비밀번호 바꾸기 · edit_site=사이트 문구 · moderate=타임아웃·밴 · manage_admins=관리자 관리 · manage_superadmins=총관리자 관리</p>
 <ul class="muted">
-  <li>관리자는 <b>일반 사용자</b>의 역할만 바꾸거나 지울 수 있어요. 관리자끼리는 서로 못 건드려요.</li>
-  <li>총관리자 계정은 총관리자만 바꿀 수 있어요. 자기 자신의 역할은 누구도 바꿀 수 없어요.</li>
+  <li>누구든 <b>나보다 낮은 등급</b>만 역할 변경·삭제·제재할 수 있어요. 같은 등급끼리는 서로 못 건드려요.</li>
+  <li>줄 수 있는 역할도 나보다 낮은 역할뿐이에요. 소유자 등급은 아무도 줄 수 없어요.</li>
+  <li><b>타임아웃</b>: 정한 시간 동안 보기·문의만 할 수 있어요. <b>밴</b>: 풀어 줄 때까지 로그인할 수 없어요.</li>
 </ul>
 
 <h2 class="sub-title">회원 목록</h2>
 <div class="table-wrap"><table class="table">
-  <tr><th>아이디</th><th>이름</th><th>가입일</th><th>역할</th><th></th></tr>
+  <tr><th>아이디</th><th>이름</th><th>가입일</th><th>등급</th><th>상태</th><th>관리</th></tr>
   {% for u in items %}
     {% set manageable = can_manage(user, u) %}
+    {% set moderatable = can_moderate(user, u) %}
     <tr>
       <td><b>{{ u.username }}</b>{% if u.id == user.id %} (나){% endif %}</td>
       <td>{{ u.name }}</td>
       <td>{{ u.created_at|datefmt }}</td>
       <td>
-        {% if manageable %}
+        {% if manageable and assignable|length > 1 %}
         <form method="post" action="/admin/users/{{ u.id }}/role" class="inline">
           <select name="role" onchange="this.form.submit()">
             {% for role in assignable %}<option value="{{ role }}" {{ 'selected' if u.role == role }}>{{ ROLE_LABELS.get(role, role) }}</option>{% endfor %}
           </select>
         </form>
-        {% else %}{{ ROLE_LABELS.get(u.role, u.role) }} 🔒{% endif %}
+        {% else %}{{ ROLE_LABELS.get(u.role, u.role) }}{% if u.role == 'owner' %} 👑{% elif not manageable %} 🔒{% endif %}{% endif %}
+      </td>
+      <td class="wrap">
+        {% if u.is_banned %}<span class="badge badge-banned">밴</span>{% if u.ban_reason %} <small class="muted">{{ u.ban_reason }}</small>{% endif %}
+        {% elif is_timed_out(u) %}<span class="badge badge-timeout">타임아웃</span> <small class="muted">{{ u.timeout_until|datetimefmt }}까지{% if u.timeout_reason %} · {{ u.timeout_reason }}{% endif %}</small>
+        {% else %}<span class="muted">정상</span>{% endif %}
       </td>
       <td class="actions">
-        {% if has_perm(user, 'reset_password') %}
+        {% if moderatable %}
+          <details class="inline-details">
+            <summary class="btn btn-sm btn-outline">제재</summary>
+            <div class="mini-form">
+              {% if is_timed_out(u) %}
+                <form method="post" action="/admin/users/{{ u.id }}/untimeout"><button class="btn btn-sm btn-primary">타임아웃 풀기</button></form>
+              {% else %}
+                <form method="post" action="/admin/users/{{ u.id }}/timeout" class="form">
+                  <label class="field">타임아웃 시간
+                    <select name="minutes">{% for label, m in timeout_choices %}<option value="{{ m }}">{{ label }}</option>{% endfor %}</select>
+                  </label>
+                  <label class="field">사유 (회원에게 보여요)<input name="reason" maxlength="300"></label>
+                  <button class="btn btn-sm btn-outline">⏳ 타임아웃</button>
+                </form>
+              {% endif %}
+              <hr>
+              {% if u.is_banned %}
+                <form method="post" action="/admin/users/{{ u.id }}/unban"><button class="btn btn-sm btn-primary">밴 풀기</button></form>
+              {% else %}
+                <form method="post" action="/admin/users/{{ u.id }}/ban" class="form" onsubmit="return confirm('{{ u.username }}을(를) 밴할까요? 로그인할 수 없게 돼요.')">
+                  <label class="field">밴 사유 (로그인할 때 보여요)<input name="reason" maxlength="300"></label>
+                  <button class="btn btn-sm btn-danger">🚫 밴</button>
+                </form>
+              {% endif %}
+            </div>
+          </details>
+        {% endif %}
+        {% if can_edit_profile(user, u) %}
           <details class="inline-details">
             <summary class="btn btn-sm btn-outline">이름·비밀번호</summary>
             <form method="post" action="/admin/users/{{ u.id }}/profile" class="form mini-form">

@@ -6,6 +6,7 @@
     <a class="more" href="/board">← 목록으로</a>
     <p class="post-meta">{% if item.is_pinned %}<span class="badge badge-open">공지</span> {% endif %}<b>{{ item.author_name }}</b> <time>{{ item.created_at|datefmt }}</time></p>
     <h1 class="post-title">{{ item.title }}</h1>
+    {% if item.image_url %}<img class="post-image" src="{{ item.image_url }}" alt="{{ item.title }}">{% endif %}
     <div class="post-content">{{ item.content|nl2br }}</div>
 
     {% if can_edit %}

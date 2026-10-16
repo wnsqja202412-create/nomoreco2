@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}{{ item.title }}{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="container narrow">
+    <a class="more" href="/inquiry">← 내 문의</a>
+    <p class="post-meta"><span class="tag">{{ item.category }}</span>
+      <span class="badge {{ 'badge-open' if item.status == '답변완료' }}">{{ item.status }}</span>
+      <time>{{ item.created_at|datetimefmt }}</time></p>
+    <h1 class="post-title">{{ item.title }}</h1>
+
+    {% with me_staff = false %}{% include "_chat.html" %}{% endwith %}
+
+    {% if item.status == '종료' %}
+      <p class="notice-box">이 문의는 끝났어요. 더 궁금한 점은 <a href="/inquiry/new">새 문의</a>로 남겨 주세요.</p>
+    {% else %}
+      <form method="post" action="/inquiry/{{ item.id }}/reply" class="form comment-form">
+        <label class="field">메시지 보내기<textarea name="content" rows="3" maxlength="3000" required></textarea></label>
+        <div><button class="btn btn-primary">보내기</button></div>
+      </form>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

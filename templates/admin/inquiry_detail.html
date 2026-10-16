@@ -1,0 +1,30 @@
+{% extends "admin/layout.html" %}
+{% block title %}문의: {{ item.title }}{% endblock %}
+{% block admin %}
+<a class="more" href="/admin/inquiries">← 문의 목록</a>
+<div class="section-head" style="margin-top:12px">
+  <h1 style="margin:0">{{ item.title }}</h1>
+  <form method="post" action="/admin/inquiries/{{ item.id }}/status" class="inline">
+    상태 <select name="status" onchange="this.form.submit()">
+      {% for s in statuses %}<option {{ 'selected' if item.status == s }}>{{ s }}</option>{% endfor %}
+    </select>
+  </form>
+</div>
+<p class="muted"><span class="tag">{{ item.category }}</span>
+  보낸 사람: <b>{{ item.author_name }}</b>{% if author %} ({{ author.username }} · {{ ROLE_LABELS.get(author.role, author.role) }}){% else %} (탈퇴한 회원){% endif %}
+  · {{ item.created_at|datetimefmt }}</p>
+
+{% with me_staff = true %}{% include "_chat.html" %}{% endwith %}
+
+<form method="post" action="/admin/inquiries/{{ item.id }}/reply" class="form comment-form">
+  <label class="field">답변 쓰기<textarea name="content" rows="4" maxlength="3000" required></textarea></label>
+  <label class="check"><input type="checkbox" name="close" value="1"> 이 답변으로 문의 끝내기 (회원이 더 쓸 수 없어요)</label>
+  <div class="actions">
+    <button class="btn btn-primary">답변 보내기</button>
+  </div>
+</form>
+
+<form method="post" action="/admin/inquiries/{{ item.id }}/delete" style="margin-top:30px" onsubmit="return confirm('이 문의와 대화를 모두 지울까요?')">
+  <button class="btn btn-sm btn-danger">문의 삭제</button>
+</form>
+{% endblock %}

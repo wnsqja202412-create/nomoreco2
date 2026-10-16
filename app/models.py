@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, LargeBinary, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -13,6 +13,8 @@ APPLICATION_STATUSES = ["접수", "검토중", "합격", "보류"]
 DONATION_TYPES = ["정기후원", "일시후원", "기념일후원"]
 PAYMENT_METHODS = ["CMS 자동이체", "신용카드", "계좌이체", "휴대폰 결제"]
 DONATION_STATUSES = ["신청", "입금확인", "취소"]
+INQUIRY_CATEGORIES = ["일반", "후원", "활동·모집", "회원·계정", "기타"]
+INQUIRY_STATUSES = ["답변대기", "답변완료", "종료"]
 
 
 def now_kst() -> datetime:
@@ -28,6 +30,11 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(50))
     role: Mapped[str] = mapped_column(String(20), default="user")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_kst)
+    # 제재 - 밴(로그인 못 함), 타임아웃(정해진 시간까지 보기·문의만 가능)
+    is_banned: Mapped[bool] = mapped_column(Boolean, default=False)
+    ban_reason: Mapped[str] = mapped_column(String(300), default="")
+    timeout_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    timeout_reason: Mapped[str] = mapped_column(String(300), default="")
 
 
 class Post(Base):
@@ -55,6 +62,7 @@ class BoardPost(Base):
     author_name: Mapped[str] = mapped_column(String(50), default="관리자")
     title: Mapped[str] = mapped_column(String(200))
     content: Mapped[str] = mapped_column(Text)
+    image_url: Mapped[str] = mapped_column(String(500), default="")
     is_pinned: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_kst)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=now_kst)
@@ -130,6 +138,54 @@ class Donation(Base):
     method: Mapped[str] = mapped_column(String(30))
     message: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String(20), default="신청")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_kst)
+
+
+class Inquiry(Base):
+    """문의 - 회원과 관리자가 대화(메시지)를 주고받아요."""
+
+    __tablename__ = "inquiries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    author_name: Mapped[str] = mapped_column(String(50))
+    category: Mapped[str] = mapped_column(String(20), default="일반")
+    title: Mapped[str] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(20), default="답변대기")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_kst)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=now_kst)
+
+    messages: Mapped[list["InquiryMessage"]] = relationship(
+        back_populates="inquiry", cascade="all, delete-orphan", order_by="InquiryMessage.id"
+    )
+
+
+class InquiryMessage(Base):
+    """문의 안의 말 한마디"""
+
+    __tablename__ = "inquiry_messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    inquiry_id: Mapped[int] = mapped_column(ForeignKey("inquiries.id"), index=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    author_name: Mapped[str] = mapped_column(String(50))
+    is_staff: Mapped[bool] = mapped_column(Boolean, default=False)
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_kst)
+
+    inquiry: Mapped[Inquiry] = relationship(back_populates="messages")
+
+
+class Image(Base):
+    """내 컴퓨터에서 올린 사진 - Vercel은 파일을 오래 못 둬서 데이터베이스에 넣어요."""
+
+    __tablename__ = "images"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    content_type: Mapped[str] = mapped_column(String(30))
+    data: Mapped[bytes] = mapped_column(LargeBinary)
+    size: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_kst)
 
 

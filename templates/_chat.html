@@ -1,0 +1,13 @@
+{# 문의 대화 말풍선 - me_staff: 지금 보는 사람이 관리자 쪽이면 True #}
+<div class="chat">
+  {% for m in item.messages %}
+    <div class="bubble {{ 'bubble-mine' if m.is_staff == me_staff else 'bubble-other' }} {{ 'bubble-staff' if m.is_staff }}">
+      <p class="bubble-meta">
+        <b>{% if m.is_staff %}🌱 NomoreCO2 {{ m.author_name }}{% else %}{{ m.author_name }}{% endif %}</b>
+        <time>{{ m.created_at|datetimefmt }}</time>
+      </p>
+      <p>{{ m.content|nl2br }}</p>
+    </div>
+  {% endfor %}
+  <span id="bottom"></span>
+</div>

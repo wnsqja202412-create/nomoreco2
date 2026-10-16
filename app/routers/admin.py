@@ -1,24 +1,37 @@
 """관리자 전용 페이지 - 'admin_access' 권한이 있는 아이디만 들어올 수 있어요."""
+from datetime import timedelta
+from types import SimpleNamespace
+
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from starlette.datastructures import UploadFile
 from fastapi.responses import RedirectResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from ..auth import (ROLE_PERMISSIONS, assignable_roles, can_manage_user, hash_password,
-                    require_permission)
+from ..auth import (ROLE_PERMISSIONS, assignable_roles, can_edit_profile, can_manage_user,
+                    can_moderate, hash_password, is_timed_out, require_permission)
 from ..database import get_db
-from ..models import (APPLICATION_STATUSES, CATEGORIES, DONATION_STATUSES, Application,
-                      BankAccount, BoardPost, Comment, Donation, Post, Recruitment, User, now_kst)
+from ..images import delete_image_url, photo_upload, resolve_image
+from ..models import (APPLICATION_STATUSES, CATEGORIES, DONATION_STATUSES, INQUIRY_STATUSES,
+                      Application, BankAccount, BoardPost, Comment, Donation, Image, Inquiry,
+                      InquiryMessage, Post, Recruitment, User, now_kst)
 from ..site import DONATE_FIELDS, SETTING_FIELDS, SETTING_GROUPS, get_settings, save_settings
 from ..templating import flash, render
 
 router = APIRouter(prefix="/admin", dependencies=[Depends(require_permission("admin_access"))])
 content_editor = require_permission("content_edit")
 user_manager = require_permission("manage_users")
+donations_manager = require_permission("manage_donations")
+inquiry_manager = require_permission("manage_inquiries")
 donate_manager = require_permission("manage_donate")
 bank_manager = require_permission("manage_bank")
 super_admin = require_permission("reset_password")
+moderator = require_permission("moderate")
 site_editor = require_permission("edit_site")
+
+# 타임아웃 시간 (보여 줄 이름, 분)
+TIMEOUT_CHOICES = [("10분", 10), ("1시간", 60), ("1일", 60 * 24), ("7일", 60 * 24 * 7),
+                   ("30일", 60 * 24 * 30)]
 
 
 def go(url: str) -> RedirectResponse:
@@ -41,12 +54,15 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         "applications": db.query(Application).count(),
         "donations": db.query(Donation).count(),
         "users": db.query(User).count(),
+        "inquiries": db.query(Inquiry).filter_by(status="답변대기").count(),
     }
     total = db.query(func.coalesce(func.sum(Donation.amount), 0)).scalar()
     recent_apps = db.query(Application).order_by(Application.id.desc()).limit(5).all()
     recent_dons = db.query(Donation).order_by(Donation.id.desc()).limit(5).all()
+    recent_inqs = (db.query(Inquiry).filter_by(status="답변대기")
+                   .order_by(Inquiry.updated_at).limit(5).all())
     return render(request, "admin/dashboard.html", db, counts=counts, total=total,
-                  recent_apps=recent_apps, recent_dons=recent_dons)
+                  recent_apps=recent_apps, recent_dons=recent_dons, recent_inqs=recent_inqs)
 
 
 # ---------- 활동 글 ----------
@@ -62,14 +78,28 @@ def post_new(request: Request, db: Session = Depends(get_db), _=Depends(content_
     return render(request, "admin/post_form.html", db, post=None, categories=CATEGORIES)
 
 
+def _post_form_error(request, db, post, error, **values):
+    """사진 문제로 저장 못 했을 때, 쓴 글을 그대로 둔 채 다시 보여 줘요."""
+    db.rollback()
+    draft = SimpleNamespace(image_url=post.image_url if post else "", **values)
+    return render(request, "admin/post_form.html", db, status_code=400, post=post,
+                  draft=draft, error=error, categories=CATEGORIES)
+
+
 @router.post("/posts/new")
 def post_create(
-    request: Request, db: Session = Depends(get_db), _=Depends(content_editor),
+    request: Request, db: Session = Depends(get_db), me: User = Depends(content_editor),
     title: str = Form(...), category: str = Form(...), summary: str = Form(""),
     content: str = Form(...), image_url: str = Form(""),
+    photo: UploadFile | None = Depends(photo_upload),
 ):
+    try:
+        image = resolve_image(db, "", photo, image_url, user=me)
+    except ValueError as e:
+        return _post_form_error(request, db, None, str(e), title=title, category=category,
+                                summary=summary, content=content)
     post = Post(title=title, category=category, summary=summary, content=content,
-                image_url=image_url.strip())
+                image_url=image)
     db.add(post)
     db.commit()
     flash(request, "새 활동 글을 올렸어요.")
@@ -85,13 +115,20 @@ def post_edit(post_id: int, request: Request, db: Session = Depends(get_db),
 
 @router.post("/posts/{post_id}/edit")
 def post_update(
-    post_id: int, request: Request, db: Session = Depends(get_db), _=Depends(content_editor),
+    post_id: int, request: Request, db: Session = Depends(get_db),
+    me: User = Depends(content_editor),
     title: str = Form(...), category: str = Form(...), summary: str = Form(""),
     content: str = Form(...), image_url: str = Form(""),
+    photo: UploadFile | None = Depends(photo_upload), remove_image: str | None = Form(None),
 ):
     post = get_or_404(db, Post, post_id)
+    try:
+        image = resolve_image(db, post.image_url, photo, image_url, bool(remove_image), me)
+    except ValueError as e:
+        return _post_form_error(request, db, post, str(e), title=title, category=category,
+                                summary=summary, content=content)
     post.title, post.category, post.summary = title, category, summary
-    post.content, post.image_url = content, image_url.strip()
+    post.content, post.image_url = content, image
     post.updated_at = now_kst()
     db.commit()
     flash(request, "활동 글을 수정했어요.")
@@ -101,7 +138,9 @@ def post_update(
 @router.post("/posts/{post_id}/delete")
 def post_delete(post_id: int, request: Request, db: Session = Depends(get_db),
                 _=Depends(content_editor)):
-    db.delete(get_or_404(db, Post, post_id))
+    post = get_or_404(db, Post, post_id)
+    delete_image_url(db, post.image_url)
+    db.delete(post)
     db.commit()
     flash(request, "활동 글을 지웠어요.")
     return go("/admin/posts")
@@ -228,7 +267,7 @@ def donations(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/donations/{item_id}/status")
 def donation_status(item_id: int, request: Request, db: Session = Depends(get_db),
-                    _=Depends(donate_manager), status: str = Form(...)):
+                    _=Depends(donations_manager), status: str = Form(...)):
     item = get_or_404(db, Donation, item_id)
     if status in DONATION_STATUSES:
         item.status = status
@@ -239,7 +278,7 @@ def donation_status(item_id: int, request: Request, db: Session = Depends(get_db
 
 @router.post("/donations/{item_id}/delete")
 def donation_delete(item_id: int, request: Request, db: Session = Depends(get_db),
-                    _=Depends(donate_manager)):
+                    _=Depends(donations_manager)):
     db.delete(get_or_404(db, Donation, item_id))
     db.commit()
     flash(request, "후원 신청을 지웠어요.")
@@ -253,19 +292,25 @@ def users(request: Request, db: Session = Depends(get_db), me: User = Depends(us
     items = db.query(User).order_by(User.id).all()
     return render(request, "admin/users.html", db, items=items, roles=list(ROLE_PERMISSIONS),
                   role_permissions=ROLE_PERMISSIONS, can_manage=can_manage_user,
-                  assignable=assignable_roles(me))
+                  can_moderate=can_moderate, can_edit_profile=can_edit_profile,
+                  is_timed_out=is_timed_out, assignable=assignable_roles(me),
+                  timeout_choices=TIMEOUT_CHOICES)
 
 
-def _managed_target(db: Session, request: Request, me: User, user_id: int) -> User | None:
+def _checked_target(db: Session, request: Request, me: User, user_id: int, allowed) -> User | None:
     """me가 건드릴 수 있는 회원이면 돌려주고, 아니면 안내 문구를 남겨요."""
     target = get_or_404(db, User, user_id)
     if target.id == me.id:
-        flash(request, "자기 자신의 역할은 바꾸거나 지울 수 없어요.")
+        flash(request, "자기 자신은 바꾸거나 지울 수 없어요.")
         return None
-    if not can_manage_user(me, target):
-        flash(request, "관리자·총관리자 계정은 총관리자만 바꿀 수 있어요.")
+    if not allowed(me, target):
+        flash(request, "나보다 등급이 같거나 높은 계정은 건드릴 수 없어요.")
         return None
     return target
+
+
+def _managed_target(db: Session, request: Request, me: User, user_id: int) -> User | None:
+    return _checked_target(db, request, me, user_id, can_manage_user)
 
 
 @router.post("/users/{user_id}/role")
@@ -289,7 +334,7 @@ def user_delete(user_id: int, request: Request, db: Session = Depends(get_db),
     target = _managed_target(db, request, me, user_id)
     if target is None:
         return go("/admin/users")
-    for model in (Application, Donation, Comment, BoardPost):
+    for model in (Application, Donation, Comment, BoardPost, Inquiry, InquiryMessage, Image):
         db.query(model).filter_by(user_id=target.id).update({"user_id": None})
     db.delete(target)
     db.commit()
@@ -299,9 +344,11 @@ def user_delete(user_id: int, request: Request, db: Session = Depends(get_db),
 
 @router.post("/users/{user_id}/profile")
 def user_profile(user_id: int, request: Request, db: Session = Depends(get_db),
-                 _=Depends(super_admin), name: str = Form(""), password: str = Form("")):
-    """총관리자 전용: 누구든 이름을 고치거나 비밀번호를 새로 정해 줄 수 있어요."""
-    target = get_or_404(db, User, user_id)
+                 me: User = Depends(super_admin), name: str = Form(""), password: str = Form("")):
+    """총관리자 이상: 나보다 낮은 등급의 이름을 고치거나 비밀번호를 새로 정해 줄 수 있어요."""
+    target = _checked_target(db, request, me, user_id, can_edit_profile)
+    if target is None:
+        return go("/admin/users")
     name, changed = name.strip()[:50], []
     if name and name != target.name:
         target.name = name
@@ -316,6 +363,117 @@ def user_profile(user_id: int, request: Request, db: Session = Depends(get_db),
     flash(request, f"{target.username}의 {'·'.join(changed)}을(를) 바꿨어요." if changed
           else "바뀐 것이 없어요.")
     return go("/admin/users")
+
+
+# ---------- 제재 (타임아웃 / 밴) - 총관리자 이상 ----------
+
+@router.post("/users/{user_id}/timeout")
+def user_timeout(user_id: int, request: Request, db: Session = Depends(get_db),
+                 me: User = Depends(moderator), minutes: int = Form(...), reason: str = Form("")):
+    target = _checked_target(db, request, me, user_id, can_moderate)
+    if target is None:
+        return go("/admin/users")
+    labels = {m: label for label, m in TIMEOUT_CHOICES}
+    if minutes not in labels:
+        flash(request, "타임아웃 시간을 골라 주세요.")
+        return go("/admin/users")
+    target.timeout_until = now_kst() + timedelta(minutes=minutes)
+    target.timeout_reason = reason.strip()[:300]
+    db.commit()
+    flash(request, f"{target.username}을(를) {labels[minutes]} 동안 타임아웃했어요.")
+    return go("/admin/users")
+
+
+@router.post("/users/{user_id}/untimeout")
+def user_untimeout(user_id: int, request: Request, db: Session = Depends(get_db),
+                   me: User = Depends(moderator)):
+    target = _checked_target(db, request, me, user_id, can_moderate)
+    if target is not None:
+        target.timeout_until, target.timeout_reason = None, ""
+        db.commit()
+        flash(request, f"{target.username}의 타임아웃을 풀었어요.")
+    return go("/admin/users")
+
+
+@router.post("/users/{user_id}/ban")
+def user_ban(user_id: int, request: Request, db: Session = Depends(get_db),
+             me: User = Depends(moderator), reason: str = Form("")):
+    target = _checked_target(db, request, me, user_id, can_moderate)
+    if target is not None:
+        target.is_banned, target.ban_reason = True, reason.strip()[:300]
+        db.commit()
+        flash(request, f"{target.username}을(를) 밴했어요. 이제 로그인할 수 없어요.")
+    return go("/admin/users")
+
+
+@router.post("/users/{user_id}/unban")
+def user_unban(user_id: int, request: Request, db: Session = Depends(get_db),
+               me: User = Depends(moderator)):
+    target = _checked_target(db, request, me, user_id, can_moderate)
+    if target is not None:
+        target.is_banned, target.ban_reason = False, ""
+        db.commit()
+        flash(request, f"{target.username}의 밴을 풀었어요.")
+    return go("/admin/users")
+
+
+# ---------- 문의 ----------
+
+@router.get("/inquiries")
+def inquiries(request: Request, status: str = "", db: Session = Depends(get_db),
+              _=Depends(inquiry_manager)):
+    query = db.query(Inquiry)
+    if status in INQUIRY_STATUSES:
+        query = query.filter(Inquiry.status == status)
+    items = query.order_by(Inquiry.updated_at.desc()).all()
+    counts = dict(db.query(Inquiry.status, func.count()).group_by(Inquiry.status).all())
+    return render(request, "admin/inquiries.html", db, items=items, statuses=INQUIRY_STATUSES,
+                  current=status, counts=counts)
+
+
+@router.get("/inquiries/{item_id}")
+def inquiry_detail(item_id: int, request: Request, db: Session = Depends(get_db),
+                   _=Depends(inquiry_manager)):
+    item = get_or_404(db, Inquiry, item_id)
+    author = db.get(User, item.user_id) if item.user_id else None
+    return render(request, "admin/inquiry_detail.html", db, item=item, author=author,
+                  statuses=INQUIRY_STATUSES)
+
+
+@router.post("/inquiries/{item_id}/reply")
+def inquiry_reply(item_id: int, request: Request, db: Session = Depends(get_db),
+                  me: User = Depends(inquiry_manager), content: str = Form(...),
+                  close: str | None = Form(None)):
+    item = get_or_404(db, Inquiry, item_id)
+    content = content.strip()[:3000]
+    if content:
+        db.add(InquiryMessage(inquiry_id=item.id, user_id=me.id, author_name=me.name,
+                              is_staff=True, content=content))
+        item.status = "종료" if close else "답변완료"
+        item.updated_at = now_kst()
+        db.commit()
+        flash(request, "답변을 보냈어요.")
+    return go(f"/admin/inquiries/{item.id}#bottom")
+
+
+@router.post("/inquiries/{item_id}/status")
+def inquiry_status(item_id: int, request: Request, db: Session = Depends(get_db),
+                   _=Depends(inquiry_manager), status: str = Form(...)):
+    item = get_or_404(db, Inquiry, item_id)
+    if status in INQUIRY_STATUSES:
+        item.status = status
+        db.commit()
+        flash(request, f"문의 상태를 '{status}'(으)로 바꿨어요.")
+    return go(f"/admin/inquiries/{item.id}")
+
+
+@router.post("/inquiries/{item_id}/delete")
+def inquiry_delete(item_id: int, request: Request, db: Session = Depends(get_db),
+                   _=Depends(inquiry_manager)):
+    db.delete(get_or_404(db, Inquiry, item_id))
+    db.commit()
+    flash(request, "문의를 지웠어요.")
+    return go("/admin/inquiries")
 
 
 # ---------- 사이트 문구 설정 ----------

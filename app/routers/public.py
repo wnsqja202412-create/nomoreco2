@@ -1,15 +1,19 @@
 """누구나 볼 수 있는 페이지들"""
 import re
+from types import SimpleNamespace
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from starlette.datastructures import UploadFile
+from fastapi.responses import RedirectResponse, Response
 from sqlalchemy.orm import Session
 
 from ..auth import (Forbidden, get_current_user, has_permission, hash_password,
                     require_permission, verify_password)
 from ..database import get_db
-from ..models import (CATEGORIES, DONATION_TYPES, PAYMENT_METHODS, Application,
-                      BoardPost, Comment, Donation, Post, Recruitment, User, now_kst)
+from ..images import delete_image_url, photo_upload, resolve_image
+from ..models import (CATEGORIES, DONATION_TYPES, INQUIRY_CATEGORIES, PAYMENT_METHODS,
+                      Application, BoardPost, Comment, Donation, Image, Inquiry, InquiryMessage,
+                      Post, Recruitment, User, now_kst)
 from ..site import (active_bank_accounts, donate_amounts, donate_usage, get_settings,
                     split_lines)
 from ..templating import flash, render
@@ -43,6 +47,18 @@ def activities(request: Request, category: str = "", db: Session = Depends(get_d
     posts = query.order_by(Post.id.desc()).all()
     return render(request, "activities.html", db, posts=posts,
                   categories=CATEGORIES, current=category)
+
+
+@router.get("/images/{image_id}")
+def image(image_id: int, db: Session = Depends(get_db)):
+    """올린 사진 보여 주기 - 사진은 바뀌지 않으니 브라우저가 오래 기억해도 돼요."""
+    img = db.get(Image, image_id)
+    if img is None:
+        raise HTTPException(404)
+    return Response(content=img.data, media_type=img.content_type, headers={
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "X-Content-Type-Options": "nosniff",
+    })
 
 
 @router.get("/activities/{post_id}")
@@ -83,17 +99,32 @@ def board_new(request: Request, db: Session = Depends(get_db),
     return render(request, "board_form.html", db, item=None)
 
 
+def _board_form_error(request, db, item, error, title, content):
+    """제목·내용이 비었거나 사진에 문제가 있으면, 쓴 글을 그대로 둔 채 다시 보여 줘요."""
+    db.rollback()
+    draft = SimpleNamespace(title=title, content=content,
+                            image_url=item.image_url if item else "",
+                            is_pinned=item.is_pinned if item else False)
+    return render(request, "board_form.html", db, status_code=400, item=item, draft=draft,
+                  error=error)
+
+
 @router.post("/board/new")
 def board_create(
     request: Request, db: Session = Depends(get_db),
     user: User = Depends(require_permission("write")),
     title: str = Form(...), content: str = Form(...), is_pinned: str | None = Form(None),
+    photo: UploadFile | None = Depends(photo_upload),
 ):
     title, content = title.strip()[:200], content.strip()
     if not title or not content:
-        flash(request, "제목과 내용을 써 주세요.")
-        return RedirectResponse("/board/new", status_code=303)
+        return _board_form_error(request, db, None, "제목과 내용을 써 주세요.", title, content)
+    try:
+        image = resolve_image(db, "", photo, user=user)
+    except ValueError as e:
+        return _board_form_error(request, db, None, str(e), title, content)
     item = BoardPost(user_id=user.id, author_name=user.name, title=title, content=content,
+                     image_url=image,
                      is_pinned=bool(is_pinned) and has_permission(user, "content_edit"))
     db.add(item)
     db.commit()
@@ -115,15 +146,19 @@ def board_update(
     item_id: int, request: Request, db: Session = Depends(get_db),
     user: User = Depends(require_permission("view")),
     title: str = Form(...), content: str = Form(...), is_pinned: str | None = Form(None),
+    photo: UploadFile | None = Depends(photo_upload), remove_image: str | None = Form(None),
 ):
     item = _board_or_404(db, item_id)
     if not _can_edit_board(user, item):
         raise Forbidden()
     title, content = title.strip()[:200], content.strip()
     if not title or not content:
-        flash(request, "제목과 내용을 써 주세요.")
-        return RedirectResponse(f"/board/{item.id}/edit", status_code=303)
-    item.title, item.content = title, content
+        return _board_form_error(request, db, item, "제목과 내용을 써 주세요.", title, content)
+    try:
+        image = resolve_image(db, item.image_url, photo, remove=bool(remove_image), user=user)
+    except ValueError as e:
+        return _board_form_error(request, db, item, str(e), title, content)
+    item.title, item.content, item.image_url = title, content, image
     # 공지 고정은 관리자만 바꿀 수 있어요.
     if has_permission(user, "content_edit"):
         item.is_pinned = bool(is_pinned)
@@ -139,6 +174,7 @@ def board_delete(item_id: int, request: Request, db: Session = Depends(get_db),
     item = _board_or_404(db, item_id)
     if not _can_edit_board(user, item):
         raise Forbidden()
+    delete_image_url(db, item.image_url)
     db.delete(item)
     db.commit()
     flash(request, "게시판 글을 지웠어요.")
@@ -290,6 +326,72 @@ def apply(
         db.commit()
         flash(request, f"'{recruitment.title}'에 지원해 주셔서 고마워요! 곧 연락드릴게요.")
     return RedirectResponse("/join", status_code=303)
+
+
+# ---------- 문의하기 (로그인한 사람만, 관리자와 대화해요) ----------
+
+def _my_inquiry(db: Session, user: User, item_id: int) -> Inquiry:
+    item = db.get(Inquiry, item_id)
+    if item is None:
+        raise HTTPException(404)
+    if item.user_id != user.id and not has_permission(user, "manage_inquiries"):
+        raise Forbidden()
+    return item
+
+
+@router.get("/inquiry")
+def inquiry_list(request: Request, db: Session = Depends(get_db),
+                 user: User = Depends(require_permission("inquiry"))):
+    items = (db.query(Inquiry).filter_by(user_id=user.id)
+             .order_by(Inquiry.updated_at.desc()).all())
+    return render(request, "inquiry.html", db, items=items)
+
+
+@router.get("/inquiry/new")
+def inquiry_new(request: Request, db: Session = Depends(get_db),
+                _=Depends(require_permission("inquiry"))):
+    return render(request, "inquiry_form.html", db, categories=INQUIRY_CATEGORIES)
+
+
+@router.post("/inquiry/new")
+def inquiry_create(request: Request, db: Session = Depends(get_db),
+                   user: User = Depends(require_permission("inquiry")),
+                   category: str = Form("일반"), title: str = Form(...),
+                   content: str = Form(...)):
+    title, content = title.strip()[:200], content.strip()[:3000]
+    if not title or not content:
+        flash(request, "제목과 내용을 써 주세요.")
+        return RedirectResponse("/inquiry/new", status_code=303)
+    item = Inquiry(user_id=user.id, author_name=user.name, title=title,
+                   category=category if category in INQUIRY_CATEGORIES else "기타")
+    item.messages.append(InquiryMessage(user_id=user.id, author_name=user.name, content=content))
+    db.add(item)
+    db.commit()
+    flash(request, "문의를 보냈어요. 관리자가 답변하면 여기에서 볼 수 있어요.")
+    return RedirectResponse(f"/inquiry/{item.id}", status_code=303)
+
+
+@router.get("/inquiry/{item_id}")
+def inquiry_detail(item_id: int, request: Request, db: Session = Depends(get_db),
+                   user: User = Depends(require_permission("inquiry"))):
+    return render(request, "inquiry_detail.html", db, item=_my_inquiry(db, user, item_id))
+
+
+@router.post("/inquiry/{item_id}/reply")
+def inquiry_reply(item_id: int, request: Request, db: Session = Depends(get_db),
+                  user: User = Depends(require_permission("inquiry")),
+                  content: str = Form(...)):
+    item = _my_inquiry(db, user, item_id)
+    content = content.strip()[:3000]
+    if item.status == "종료":
+        flash(request, "끝난 문의예요. 새 문의를 남겨 주세요.")
+    elif content:
+        item.messages.append(InquiryMessage(user_id=user.id, author_name=user.name,
+                                            content=content))
+        item.status, item.updated_at = "답변대기", now_kst()
+        db.commit()
+        flash(request, "메시지를 보냈어요.")
+    return RedirectResponse(f"/inquiry/{item.id}#bottom", status_code=303)
 
 
 # ---------- 마이페이지 (로그인한 사람만) ----------

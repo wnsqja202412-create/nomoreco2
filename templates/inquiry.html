@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}문의하기{% endblock %}
+{% block content %}
+<section class="page-hero">
+  <div class="container">
+    <p class="eyebrow">CONTACT</p>
+    <h1>문의하기</h1>
+    <p>궁금한 점을 남겨 주세요. 관리자가 답변하면 여기에서 대화를 이어 갈 수 있어요.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container narrow">
+    <div class="toolbar">
+      <h2 class="sub-title" style="margin:0">내 문의</h2>
+      <a class="btn btn-primary" href="/inquiry/new">+ 새 문의 쓰기</a>
+    </div>
+    <div class="table-wrap"><table class="table">
+      <tr><th>분류</th><th>제목</th><th>상태</th><th>마지막 대화</th></tr>
+      {% for q in items %}
+        <tr>
+          <td>{{ q.category }}</td>
+          <td class="wrap"><a href="/inquiry/{{ q.id }}">{{ q.title }}</a> <span class="muted">[{{ q.messages|length }}]</span></td>
+          <td><span class="badge {{ 'badge-open' if q.status == '답변완료' }}">{{ q.status }}</span></td>
+          <td>{{ q.updated_at|datetimefmt }}</td>
+        </tr>
+      {% else %}<tr><td colspan="4" class="muted">아직 남긴 문의가 없어요.</td></tr>{% endfor %}
+    </table></div>
+  </div>
+</section>
+{% endblock %}

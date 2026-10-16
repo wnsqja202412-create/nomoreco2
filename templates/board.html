@@ -24,7 +24,7 @@
       {% for b in items %}
         <tr>
           <td>{% if b.is_pinned %}<span class="badge badge-open">공지</span>{% else %}{{ b.id }}{% endif %}</td>
-          <td class="wrap"><a href="/board/{{ b.id }}">{{ b.title }}</a>{% if b.comments %} <span class="muted">[{{ b.comments|length }}]</span>{% endif %}</td>
+          <td class="wrap"><a href="/board/{{ b.id }}">{{ b.title }}</a>{% if b.image_url %} 📷{% endif %}{% if b.comments %} <span class="muted">[{{ b.comments|length }}]</span>{% endif %}</td>
           <td>{{ b.author_name }}</td>
           <td>{{ b.created_at|datefmt }}</td>
         </tr>

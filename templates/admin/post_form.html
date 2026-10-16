@@ -1,17 +1,19 @@
 {% extends "admin/layout.html" %}
 {% block title %}{{ '글 수정' if post else '새 글 쓰기' }}{% endblock %}
 {% block admin %}
+{% set v = draft or post %}
 <h1>{{ '활동 글 수정' if post else '새 활동 글 쓰기' }}</h1>
-<form method="post" class="form">
-  <label class="field">제목<input name="title" required maxlength="200" value="{{ post.title if post else '' }}"></label>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<form method="post" class="form" enctype="multipart/form-data">
+  <label class="field">제목<input name="title" required maxlength="200" value="{{ v.title if v else '' }}"></label>
   <label class="field">분류
     <select name="category">
-      {% for c in categories %}<option {{ 'selected' if post and post.category == c }}>{{ c }}</option>{% endfor %}
+      {% for c in categories %}<option {{ 'selected' if v and v.category == c }}>{{ c }}</option>{% endfor %}
     </select>
   </label>
-  <label class="field">요약 (목록에 보이는 한 줄 소개)<input name="summary" maxlength="300" value="{{ post.summary if post else '' }}"></label>
-  <label class="field">본문<textarea name="content" rows="12" required>{{ post.content if post else '' }}</textarea></label>
-  <label class="field">사진 주소 (선택, https:// 로 시작하는 이미지 링크)<input name="image_url" maxlength="500" value="{{ post.image_url if post else '' }}"></label>
+  <label class="field">요약 (목록에 보이는 한 줄 소개)<input name="summary" maxlength="300" value="{{ v.summary if v else '' }}"></label>
+  <label class="field">본문<textarea name="content" rows="12" required>{{ v.content if v else '' }}</textarea></label>
+  {% with current = post.image_url if post else '', show_link = true %}{% include "_photo_field.html" %}{% endwith %}
   <div class="actions">
     <button class="btn btn-primary">저장하기</button>
     <a class="btn btn-outline" href="/admin/posts">취소</a>

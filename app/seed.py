@@ -3,7 +3,7 @@ import os
 
 from sqlalchemy.exc import IntegrityError
 
-from .auth import ROLE_SUPER, hash_password
+from .auth import ROLE_OWNER, ROLE_SUPER, hash_password
 from .database import SessionLocal
 from .models import BoardPost, Post, Recruitment, User
 
@@ -71,18 +71,21 @@ SAMPLE_RECRUITMENTS = [
 def seed() -> None:
     db = SessionLocal()
     try:
-        # ADMIN_USERNAME 계정은 언제나 총관리자예요. (다른 관리자가 바꿔도 다시 켜면 돌아와요)
+        # ADMIN_USERNAME 계정은 언제나 '소유자'예요. 소유자는 서버에 딱 한 명뿐이에요.
         admin_username = os.getenv("ADMIN_USERNAME", "admin")
         admin = db.query(User).filter_by(username=admin_username).first()
         if admin is None:
-            db.add(User(
+            admin = User(
                 username=admin_username,
-                name="총관리자",
-                role=ROLE_SUPER,
+                name="소유자",
+                role=ROLE_OWNER,
                 password_hash=hash_password(os.getenv("ADMIN_PASSWORD", "nomoreco2!")),
-            ))
-        elif admin.role != ROLE_SUPER:
-            admin.role = ROLE_SUPER
+            )
+            db.add(admin)
+        admin.role, admin.is_banned, admin.timeout_until = ROLE_OWNER, False, None
+        # 다른 아이디가 소유자로 되어 있으면 총관리자로 내려요.
+        (db.query(User).filter(User.role == ROLE_OWNER, User.username != admin_username)
+         .update({"role": ROLE_SUPER}))
 
         if db.query(Post).count() == 0:
             db.add_all(Post(**p) for p in reversed(SAMPLE_POSTS))

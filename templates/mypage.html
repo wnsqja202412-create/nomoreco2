@@ -4,7 +4,7 @@
 <section class="section">
   <div class="container narrow">
     <h1>{{ user.name }}님의 페이지</h1>
-    <p class="muted">아이디: {{ user.username }} · 권한: <b>{{ ROLE_LABELS.get(user.role, user.role) }}</b></p>
+    <p class="muted">아이디: {{ user.username }} · 등급: <b>{{ ROLE_LABELS.get(user.role, user.role) }}</b> · <a href="/inquiry">💬 내 문의 보기</a></p>
 
     <h2 class="sub-title">내 후원 신청</h2>
     {% if donations %}

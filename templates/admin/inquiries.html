@@ -1,0 +1,24 @@
+{% extends "admin/layout.html" %}
+{% block title %}문의 관리{% endblock %}
+{% block admin %}
+<h1>문의 관리</h1>
+<div class="tabs" style="margin-bottom:20px">
+  <a href="/admin/inquiries" class="{{ 'active' if not current }}">전체</a>
+  {% for s in statuses %}
+    <a href="/admin/inquiries?status={{ s }}" class="{{ 'active' if current == s }}">{{ s }} ({{ counts.get(s, 0) }})</a>
+  {% endfor %}
+</div>
+<div class="table-wrap"><table class="table">
+  <tr><th>상태</th><th>분류</th><th>제목</th><th>보낸 사람</th><th>대화</th><th>마지막 대화</th></tr>
+  {% for q in items %}
+    <tr>
+      <td><span class="badge {{ 'badge-open' if q.status == '답변대기' }}">{{ q.status }}</span></td>
+      <td>{{ q.category }}</td>
+      <td class="wrap"><a href="/admin/inquiries/{{ q.id }}">{{ q.title }}</a></td>
+      <td>{{ q.author_name }}</td>
+      <td>{{ q.messages|length }}</td>
+      <td>{{ q.updated_at|datetimefmt }}</td>
+    </tr>
+  {% else %}<tr><td colspan="6" class="muted">문의가 없어요</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

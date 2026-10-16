@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}새 문의{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="container narrow">
+    <a class="more" href="/inquiry">← 내 문의</a>
+    <h1>새 문의 쓰기</h1>
+    <form method="post" class="form">
+      <label class="field">분류
+        <select name="category">{% for c in categories %}<option>{{ c }}</option>{% endfor %}</select>
+      </label>
+      <label class="field">제목<input name="title" required maxlength="200"></label>
+      <label class="field">내용<textarea name="content" rows="8" required maxlength="3000"></textarea></label>
+      <div class="actions">
+        <button class="btn btn-primary">문의 보내기</button>
+        <a class="btn btn-outline" href="/inquiry">취소</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

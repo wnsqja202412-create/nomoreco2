@@ -36,6 +36,10 @@ def login(
     if user is None or not verify_password(password, user.password_hash):
         return render(request, "login.html", db, status_code=400, next=_safe_next(next),
                       error="아이디 또는 비밀번호가 맞지 않아요.", username=username)
+    if user.is_banned:
+        reason = f" (사유: {user.ban_reason})" if user.ban_reason else ""
+        return render(request, "login.html", db, status_code=403, next=_safe_next(next),
+                      error=f"이용이 정지된 아이디예요.{reason}", username=username)
     request.session.clear()
     request.session["user_id"] = user.id
     flash(request, f"{user.name}님, 반가워요!")

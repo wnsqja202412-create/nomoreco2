@@ -1,0 +1,64 @@
+{# 사진 올리기 칸 - current: 지금 사진 주소, show_link: 바깥 사진 링크 칸도 보여 줄지
+   이 칸을 쓰는 form 에는 enctype="multipart/form-data" 가 꼭 있어야 해요. #}
+<fieldset class="photo-field">
+  <legend>📷 사진 (선택)</legend>
+  {% if current %}
+    <div class="photo-current">
+      <img src="{{ current }}" alt="지금 사진">
+      <label class="check"><input type="checkbox" name="remove_image" value="1"> 이 사진 지우기</label>
+    </div>
+  {% endif %}
+  <label class="field">{{ '사진 바꾸기' if current else '내 컴퓨터에서 사진 고르기' }}
+    <input type="file" name="photo" accept="image/jpeg,image/png,image/gif,image/webp" data-photo-input>
+  </label>
+  <img class="photo-preview" alt="" hidden data-photo-preview>
+  <p class="muted photo-hint" data-photo-hint>JPG, PNG, GIF, WEBP · 큰 사진은 올릴 때 알아서 줄여 줘요.</p>
+  {% if show_link %}
+    <label class="field">또는 인터넷 사진 링크 (https:// 로 시작)
+      <input name="image_url" maxlength="500" placeholder="https://..."
+             value="{{ current if current and not current.startswith('/images/') else '' }}">
+    </label>
+  {% endif %}
+</fieldset>
+<script>
+  (function () {
+    var input = document.currentScript.parentNode.querySelector("[data-photo-input]");
+    var preview = input.closest("fieldset").querySelector("[data-photo-preview]");
+    var hint = input.closest("fieldset").querySelector("[data-photo-hint]");
+    var MAX_SIDE = 1600, MAX_BYTES = 4 * 1024 * 1024;
+
+    input.addEventListener("change", function () {
+      var file = input.files[0];
+      if (!file) { preview.hidden = true; return; }
+      preview.src = URL.createObjectURL(file);
+      preview.hidden = false;
+      // GIF는 움직임이 사라지지 않게 그대로 올려요.
+      if (file.type === "image/gif") {
+        if (file.size > MAX_BYTES) { alert("GIF가 너무 커요. 4MB보다 작은 걸 골라 주세요."); input.value = ""; preview.hidden = true; }
+        return;
+      }
+      var img = new Image();
+      img.onload = function () {
+        var scale = Math.min(1, MAX_SIDE / Math.max(img.width, img.height));
+        if (scale === 1 && file.size <= 1.5 * 1024 * 1024) return;  // 이미 작으면 그대로
+        var canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(function (blob) {
+          if (!blob) return;
+          var name = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+          var dt = new DataTransfer();
+          dt.items.add(new File([blob], name, { type: "image/jpeg" }));
+          input.files = dt.files;
+          hint.textContent = "사진을 " + Math.round(file.size / 1024) + "KB → " + Math.round(blob.size / 1024) + "KB 로 줄였어요.";
+        }, "image/jpeg", 0.85);
+      };
+      img.onerror = function () {
+        alert("이 사진은 열 수 없어요. JPG나 PNG로 골라 주세요.");
+        input.value = ""; preview.hidden = true;
+      };
+      img.src = preview.src;
+    });
+  })();
+</script>

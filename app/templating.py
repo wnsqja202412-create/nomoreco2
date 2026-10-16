@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 from markupsafe import Markup, escape
 from sqlalchemy.orm import Session
 
-from .auth import ROLE_LABELS, get_current_user, has_permission
+from .auth import ROLE_LABELS, get_current_user, has_permission, is_timed_out
 from .site import get_settings, split_lines
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -38,10 +38,15 @@ def datefmt(value) -> str:
     return value.strftime("%Y.%m.%d") if value else ""
 
 
+def datetimefmt(value) -> str:
+    return value.strftime("%Y.%m.%d %H:%M") if value else ""
+
+
 templates.env.filters.update(nl2br=nl2br, rich=rich, lines=lines, rows=split_lines,
-                             won=won, datefmt=datefmt)
+                             won=won, datefmt=datefmt, datetimefmt=datetimefmt)
 templates.env.globals.update(
-    has_perm=has_permission, CATEGORY_EMOJI=CATEGORY_EMOJI, ROLE_LABELS=ROLE_LABELS
+    has_perm=has_permission, timed_out=is_timed_out, CATEGORY_EMOJI=CATEGORY_EMOJI,
+    ROLE_LABELS=ROLE_LABELS
 )
 
 

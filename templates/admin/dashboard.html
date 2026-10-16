@@ -8,8 +8,18 @@
   <a href="/admin/recruitments"><b>{{ counts.recruitments }}</b><span>모집 중 공고</span></a>
   <a href="/admin/applications"><b>{{ counts.applications }}</b><span>지원서</span></a>
   <a href="/admin/donations"><b>{{ counts.donations }}</b><span>후원 신청 ({{ total|won }})</span></a>
+  <a href="/admin/inquiries?status=답변대기"><b>{{ counts.inquiries }}</b><span>답변 기다리는 문의</span></a>
   <a href="/admin/users"><b>{{ counts.users }}</b><span>회원</span></a>
 </div>
+
+<h2 class="sub-title">답변 기다리는 문의</h2>
+<div class="table-wrap"><table class="table">
+  <tr><th>마지막 대화</th><th>보낸 사람</th><th>분류</th><th>제목</th></tr>
+  {% for q in recent_inqs %}
+    <tr><td>{{ q.updated_at|datetimefmt }}</td><td>{{ q.author_name }}</td><td>{{ q.category }}</td>
+      <td class="wrap"><a href="/admin/inquiries/{{ q.id }}">{{ q.title }}</a></td></tr>
+  {% else %}<tr><td colspan="4" class="muted">모두 답변했어요 👍</td></tr>{% endfor %}
+</table></div>
 
 <h2 class="sub-title">최근 지원서</h2>
 <div class="table-wrap"><table class="table">
