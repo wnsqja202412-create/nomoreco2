@@ -1,4 +1,6 @@
 """관리자가 '사이트 설정'과 '후원 페이지 관리'에서 고칠 수 있는 문구들"""
+import time
+
 from sqlalchemy.orm import Session
 
 from .models import BankAccount, Setting
@@ -122,8 +124,18 @@ PLAYGROUND_FIELDS = [
 ]
 
 
+# 문구는 자주 안 바뀌어서, 페이지마다 데이터베이스에서 읽지 않고 잠깐 기억해 둬요.
+# 저장하면 바로 새로 읽어요. (Vercel 서버가 여러 개면 다른 서버에는 최대 10초 늦게 보여요)
+CACHE_SECONDS = 10
+_cache: dict = {"at": 0.0, "saved": None}
+
+
 def get_settings(db: Session) -> dict:
-    saved = {s.key: s.value for s in db.query(Setting).all()}
+    now = time.monotonic()
+    if _cache["saved"] is None or now - _cache["at"] > CACHE_SECONDS:
+        _cache["saved"] = {s.key: s.value for s in db.query(Setting).all()}
+        _cache["at"] = now
+    saved = _cache["saved"]
     return {key: saved.get(key, default)
             for key, _, default, _ in SETTING_FIELDS + DONATE_FIELDS + PLAYGROUND_FIELDS}
 
@@ -138,6 +150,7 @@ def save_settings(db: Session, fields: list, form) -> None:
         else:
             db.add(Setting(key=key, value=str(form[key])))
     db.commit()
+    _cache["saved"] = None
 
 
 def split_lines(value: str, parts: int = 2) -> list[list[str]]:

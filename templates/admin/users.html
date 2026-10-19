@@ -11,9 +11,10 @@
       <td class="wrap">{% if role == 'owner' %}<b>모든 것</b> — 총관리자가 할 수 있는 모든 일 + 총관리자 관리 (서버에 딱 한 명, 아무도 못 바꿔요){% else %}{{ role_permissions[role]|sort|join(', ') }}{% endif %}</td></tr>
   {% endfor %}
 </table></div>
-<p class="muted">view=보기 · apply=후원·지원 신청 · comment=댓글 · write=게시판 글쓰기 · inquiry=문의하기 · admin_access=관리자 페이지 · content_edit=모든 글 수정·삭제 · manage_users=아래 등급 회원 관리 · manage_donations=후원 신청 확인 · manage_inquiries=문의 답변 · manage_donate=후원 페이지 관리 · manage_bank=후원 계좌 · reset_password=아래 등급 이름·비밀번호 바꾸기 · edit_site=사이트 문구 · moderate=타임아웃·밴 · manage_admins=관리자 관리 · manage_superadmins=총관리자 관리</p>
+<p class="muted">view=보기 · apply=후원·지원 신청 · comment=댓글 · write=게시판 글쓰기 · inquiry=문의하기 · admin_access=관리자 페이지 · content_edit=모든 글 수정·삭제 · manage_users=아래 등급 회원 관리 · manage_donations=후원 신청 확인 · manage_inquiries=문의 답변 · manage_donate=후원 페이지 관리 · manage_bank=후원 계좌 · reset_password=아래 등급 이름·비밀번호 바꾸기 · edit_site=사이트 문구 · timeout=타임아웃 · moderate=밴 · delete_users=회원 삭제 · manage_admins=관리자 관리 · manage_superadmins=총관리자 관리</p>
 <ul class="muted">
   <li>누구든 <b>나보다 낮은 등급</b>만 역할 변경·삭제·제재할 수 있어요. 같은 등급끼리는 서로 못 건드려요.</li>
+  <li><b>관리자</b>는 회원을 지우거나 밴할 수 없고, <b>타임아웃</b>만 할 수 있어요. 삭제·밴은 총관리자 이상만 해요.</li>
   <li>줄 수 있는 역할도 나보다 낮은 역할뿐이에요. 소유자 등급은 아무도 줄 수 없어요.</li>
   <li><b>타임아웃</b>: 정한 시간 동안 보기·문의만 할 수 있어요. <b>밴</b>: 풀어 줄 때까지 로그인할 수 없어요.</li>
 </ul>
@@ -24,6 +25,7 @@
   {% for u in items %}
     {% set manageable = can_manage(user, u) %}
     {% set moderatable = can_moderate(user, u) %}
+    {% set timeoutable = can_timeout(user, u) %}
     <tr>
       <td><b>{{ u.username }}</b>{% if u.id == user.id %} (나){% endif %}</td>
       <td>{{ u.name }}</td>
@@ -43,7 +45,7 @@
         {% else %}<span class="muted">정상</span>{% endif %}
       </td>
       <td class="actions">
-        {% if moderatable %}
+        {% if timeoutable %}
           <details class="inline-details">
             <summary class="btn btn-sm btn-outline">제재</summary>
             <div class="mini-form">
@@ -51,13 +53,17 @@
                 <form method="post" action="/admin/users/{{ u.id }}/untimeout"><button class="btn btn-sm btn-primary">타임아웃 풀기</button></form>
               {% else %}
                 <form method="post" action="/admin/users/{{ u.id }}/timeout" class="form">
-                  <label class="field">타임아웃 시간
-                    <select name="minutes">{% for label, m in timeout_choices %}<option value="{{ m }}">{{ label }}</option>{% endfor %}</select>
+                  <label class="field">타임아웃 시간 (최대 365일)
+                    <span style="display:flex;gap:6px">
+                      <input type="number" name="amount" min="1" step="1" value="1" required style="flex:1;min-width:0">
+                      <select name="unit">{% for label in timeout_units %}<option value="{{ label }}" {{ 'selected' if label == '시간' }}>{{ label }}</option>{% endfor %}</select>
+                    </span>
                   </label>
                   <label class="field">사유 (회원에게 보여요)<input name="reason" maxlength="300"></label>
                   <button class="btn btn-sm btn-outline">⏳ 타임아웃</button>
                 </form>
               {% endif %}
+              {% if moderatable %}
               <hr>
               {% if u.is_banned %}
                 <form method="post" action="/admin/users/{{ u.id }}/unban"><button class="btn btn-sm btn-primary">밴 풀기</button></form>
@@ -66,6 +72,7 @@
                   <label class="field">밴 사유 (로그인할 때 보여요)<input name="reason" maxlength="300"></label>
                   <button class="btn btn-sm btn-danger">🚫 밴</button>
                 </form>
+              {% endif %}
               {% endif %}
             </div>
           </details>
@@ -80,7 +87,7 @@
             </form>
           </details>
         {% endif %}
-        {% if manageable %}
+        {% if can_delete(user, u) %}
         <form method="post" action="/admin/users/{{ u.id }}/delete" class="inline" onsubmit="return confirm('{{ u.username }} 회원을 정말 지울까요?')">
           <button class="btn btn-sm btn-danger">삭제</button>
         </form>

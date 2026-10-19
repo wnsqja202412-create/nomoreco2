@@ -9,9 +9,9 @@ from sqlalchemy.orm import Session
 from starlette.datastructures import UploadFile
 
 from .. import wallet
-from ..auth import (ROLE_PERMISSIONS, assignable_roles, can_edit_profile, can_manage_money,
-                    can_manage_user, can_moderate, hash_password, is_timed_out,
-                    require_permission)
+from ..auth import (ROLE_PERMISSIONS, assignable_roles, can_delete_user, can_edit_profile,
+                    can_manage_money, can_manage_user, can_moderate, can_timeout,
+                    hash_password, is_timed_out, require_permission)
 from ..database import get_db
 from ..images import delete_image_url, photo_upload, resolve_image
 from ..models import (APPLICATION_STATUSES, CATEGORIES, DONATION_STATUSES, INQUIRY_STATUSES,
@@ -31,13 +31,15 @@ donate_manager = require_permission("manage_donate")
 bank_manager = require_permission("manage_bank")
 super_admin = require_permission("reset_password")
 moderator = require_permission("moderate")
+timeout_giver = require_permission("timeout")
+user_deleter = require_permission("delete_users")
 site_editor = require_permission("edit_site")
 money_manager = require_permission("manage_money")
 playground_manager = require_permission("manage_playground")
 
-# 타임아웃 시간 (보여 줄 이름, 분)
-TIMEOUT_CHOICES = [("10분", 10), ("1시간", 60), ("1일", 60 * 24), ("7일", 60 * 24 * 7),
-                   ("30일", 60 * 24 * 30)]
+# 타임아웃 시간 단위 (보여 줄 이름, 분) - 숫자와 단위를 직접 골라요.
+TIMEOUT_UNITS = {"분": 1, "시간": 60, "일": 60 * 24}
+TIMEOUT_MAX_MINUTES = 60 * 24 * 365  # 최대 1년
 
 
 def go(url: str) -> RedirectResponse:
@@ -298,9 +300,10 @@ def users(request: Request, db: Session = Depends(get_db), me: User = Depends(us
     items = db.query(User).order_by(User.id).all()
     return render(request, "admin/users.html", db, items=items, roles=list(ROLE_PERMISSIONS),
                   role_permissions=ROLE_PERMISSIONS, can_manage=can_manage_user,
+                  can_delete=can_delete_user, can_timeout=can_timeout,
                   can_moderate=can_moderate, can_edit_profile=can_edit_profile,
                   is_timed_out=is_timed_out, assignable=assignable_roles(me),
-                  timeout_choices=TIMEOUT_CHOICES)
+                  timeout_units=TIMEOUT_UNITS)
 
 
 def _checked_target(db: Session, request: Request, me: User, user_id: int, allowed) -> User | None:
@@ -336,8 +339,8 @@ def user_role(user_id: int, request: Request, db: Session = Depends(get_db),
 
 @router.post("/users/{user_id}/delete")
 def user_delete(user_id: int, request: Request, db: Session = Depends(get_db),
-                me: User = Depends(user_manager)):
-    target = _managed_target(db, request, me, user_id)
+                me: User = Depends(user_deleter)):
+    target = _checked_target(db, request, me, user_id, can_delete_user)
     if target is None:
         return go("/admin/users")
     for model in (Application, Donation, Comment, BoardPost, Inquiry, InquiryMessage, Image):
@@ -372,29 +375,34 @@ def user_profile(user_id: int, request: Request, db: Session = Depends(get_db),
     return go("/admin/users")
 
 
-# ---------- 제재 (타임아웃 / 밴) - 총관리자 이상 ----------
+# ---------- 제재 (타임아웃: 관리자 이상 / 밴: 총관리자 이상) ----------
 
 @router.post("/users/{user_id}/timeout")
 def user_timeout(user_id: int, request: Request, db: Session = Depends(get_db),
-                 me: User = Depends(moderator), minutes: int = Form(...), reason: str = Form("")):
-    target = _checked_target(db, request, me, user_id, can_moderate)
+                 me: User = Depends(timeout_giver), amount: str = Form(...),
+                 unit: str = Form(...), reason: str = Form("")):
+    target = _checked_target(db, request, me, user_id, can_timeout)
     if target is None:
         return go("/admin/users")
-    labels = {m: label for label, m in TIMEOUT_CHOICES}
-    if minutes not in labels:
-        flash(request, "타임아웃 시간을 골라 주세요.")
+    amount = amount.strip()
+    if unit not in TIMEOUT_UNITS or not amount.isdigit() or int(amount) <= 0:
+        flash(request, "타임아웃 시간을 1 이상의 숫자로 써 주세요.")
+        return go("/admin/users")
+    minutes = int(amount) * TIMEOUT_UNITS[unit]
+    if minutes > TIMEOUT_MAX_MINUTES:
+        flash(request, "타임아웃은 최대 365일까지 할 수 있어요. 더 길게 막으려면 밴을 써 주세요.")
         return go("/admin/users")
     target.timeout_until = now_kst() + timedelta(minutes=minutes)
     target.timeout_reason = reason.strip()[:300]
     db.commit()
-    flash(request, f"{target.username}을(를) {labels[minutes]} 동안 타임아웃했어요.")
+    flash(request, f"{target.username}을(를) {int(amount)}{unit} 동안 타임아웃했어요.")
     return go("/admin/users")
 
 
 @router.post("/users/{user_id}/untimeout")
 def user_untimeout(user_id: int, request: Request, db: Session = Depends(get_db),
-                   me: User = Depends(moderator)):
-    target = _checked_target(db, request, me, user_id, can_moderate)
+                   me: User = Depends(timeout_giver)):
+    target = _checked_target(db, request, me, user_id, can_timeout)
     if target is not None:
         target.timeout_until, target.timeout_reason = None, ""
         db.commit()

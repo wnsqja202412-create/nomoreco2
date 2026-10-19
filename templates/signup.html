@@ -6,7 +6,7 @@
     <h1>회원가입</h1>
     <p class="muted">회원이 되면 내 후원·지원 내역을 볼 수 있어요.</p>
     {% if error %}<div class="error">{{ error }}</div>{% endif %}
-    <form method="post" action="/signup" class="form">
+    <form method="post" action="/signup" class="form" onsubmit="var b=this.querySelector('button');if(b.disabled)return false;b.disabled=true;b.textContent='가입하는 중...';">
       <label class="field">아이디 (영어·숫자 4~20글자)<input name="username" required pattern="[A-Za-z0-9_]{4,20}" value="{{ form.get('username', '') }}"></label>
       <label class="field">이름 (별명도 좋아요)<input name="name" required maxlength="50" value="{{ form.get('name', '') }}"></label>
       <label class="field">비밀번호 (6글자 이상)<input type="password" name="password" required minlength="6"></label>

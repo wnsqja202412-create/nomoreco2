@@ -7,18 +7,48 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
-from .auth import Forbidden, LoginRequired
-from .database import Base, SessionLocal, add_missing_columns, engine
+from sqlalchemy import text
+
+from .auth import ROLE_OWNER, Forbidden, LoginRequired
+from .database import Base, SessionLocal, add_missing_columns, engine, schema_fingerprint
+from .models import Setting
 from .routers import admin, auth, playground, public
 from .seed import seed
 from .templating import render
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# 표를 만들고 관리자 아이디·예시 글을 넣어요.
-Base.metadata.create_all(engine)
-add_missing_columns()
-seed()
+
+def prepare_database() -> None:
+    """표를 만들고, 새 칸을 붙이고, 소유자 아이디·예시 글을 넣어요.
+
+    이 확인은 데이터베이스에 50번 넘게 다녀와서 느려요. (Vercel은 서버를 자주 새로 켜요)
+    그래서 지난번과 코드가 같고 소유자도 그대로면 2번만 확인하고 건너뛰어요.
+    """
+    owner = os.getenv("ADMIN_USERNAME", "admin")
+    fingerprint = schema_fingerprint(owner)
+    try:
+        with engine.connect() as conn:
+            saved = conn.execute(text("SELECT value FROM settings WHERE key = 'schema_version'")).scalar()
+            role = conn.execute(text("SELECT role FROM users WHERE username = :u"), {"u": owner}).scalar()
+        if saved == fingerprint and role == ROLE_OWNER:
+            return
+    except Exception:
+        pass  # 처음 켜는 거라 표가 아직 없어요.
+    Base.metadata.create_all(engine)
+    add_missing_columns()
+    seed()
+    db = SessionLocal()
+    try:
+        db.merge(Setting(key="schema_version", value=fingerprint))
+        db.commit()
+    except Exception:
+        db.rollback()  # 서버 여러 개가 동시에 켜졌을 수 있어요.
+    finally:
+        db.close()
+
+
+prepare_database()
 
 class VercelPathFix:
     """Vercel이 주소를 /api/index... 로 바꿔 보내면 원래 주소로 돌려놔요."""

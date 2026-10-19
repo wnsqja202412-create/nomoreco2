@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from starlette.datastructures import UploadFile
 from fastapi.responses import RedirectResponse, Response
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..auth import (Forbidden, get_current_user, has_permission, hash_password,
@@ -26,11 +27,14 @@ def home(request: Request, db: Session = Depends(get_db)):
     posts = db.query(Post).order_by(Post.id.desc()).limit(3).all()
     recruits = (db.query(Recruitment).filter(Recruitment.is_open.is_(True))
                 .order_by(Recruitment.id.desc()).limit(3).all())
-    stats = {
-        "posts": db.query(Post).count(),
-        "people": db.query(User).count() + db.query(Application).count(),
-        "donations": db.query(Donation).count(),
-    }
+    # 숫자 세 개를 데이터베이스에 한 번만 물어봐요.
+    posts_n, users_n, apps_n, dons_n = db.query(
+        db.query(func.count(Post.id)).scalar_subquery(),
+        db.query(func.count(User.id)).scalar_subquery(),
+        db.query(func.count(Application.id)).scalar_subquery(),
+        db.query(func.count(Donation.id)).scalar_subquery(),
+    ).one()
+    stats = {"posts": posts_n, "people": users_n + apps_n, "donations": dons_n}
     return render(request, "index.html", db, posts=posts, recruits=recruits, stats=stats)
 
 

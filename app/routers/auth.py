@@ -3,6 +3,7 @@ import re
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..auth import ROLE_USER, hash_password, verify_password
@@ -69,16 +70,30 @@ def signup(
         error = "비밀번호는 6글자 이상이어야 해요."
     elif password != password2:
         error = "비밀번호 확인이 달라요."
-    elif db.query(User).filter_by(username=username).first():
-        error = "이미 있는 아이디예요."
     if error:
         return render(request, "signup.html", db, status_code=400, error=error, form=form)
 
-    # 새로 가입한 사람은 항상 '일반 사용자'(열람만 가능)예요.
-    user = User(username=username, name=name.strip(), role=ROLE_USER,
-                password_hash=hash_password(password))
-    db.add(user)
-    db.commit()
+    existing = db.query(User).filter_by(username=username).first()
+    if existing is None:
+        # 새로 가입한 사람은 항상 '일반 사용자'(열람만 가능)예요.
+        user = User(username=username, name=name.strip(), role=ROLE_USER,
+                    password_hash=hash_password(password))
+        db.add(user)
+        try:
+            db.commit()
+            return _signed_up(request, user)
+        except IntegrityError:
+            # 가입 버튼이 두 번 눌려서 같은 아이디가 동시에 만들어지려 한 경우예요.
+            db.rollback()
+            existing = db.query(User).filter_by(username=username).first()
+    if existing and not existing.is_banned and verify_password(password, existing.password_hash):
+        # 방금 만든 내 계정이에요. (버튼을 두 번 눌렀거나 새로고침으로 다시 보낸 경우)
+        return _signed_up(request, existing)
+    return render(request, "signup.html", db, status_code=400,
+                  error="이미 있는 아이디예요.", form=form)
+
+
+def _signed_up(request: Request, user: User) -> RedirectResponse:
     request.session.clear()
     request.session["user_id"] = user.id
     flash(request, "회원가입을 축하해요! 🌱")

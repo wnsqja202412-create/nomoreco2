@@ -1,3 +1,4 @@
+import hashlib
 import os
 
 from sqlalchemy import create_engine, inspect, literal, text
@@ -52,6 +53,14 @@ def add_missing_columns() -> None:
             except Exception:
                 # 서버 여러 개가 동시에 시작하면 이미 붙어 있을 수 있어요.
                 pass
+
+
+def schema_fingerprint(extra: str = "") -> str:
+    """지금 코드의 표·칸 모양을 짧은 글자로 만든 '지문'이에요. 코드가 바뀌면 지문도 바뀌어요."""
+    parts = [extra]
+    for table in sorted(Base.metadata.tables.values(), key=lambda t: t.name):
+        parts.append(table.name + ":" + ",".join(f"{c.name}/{c.type}" for c in table.columns))
+    return hashlib.sha1("|".join(parts).encode()).hexdigest()[:16]
 
 
 def get_db():

@@ -24,10 +24,11 @@ ROLE_USER = "user"
 
 _USER_PERMS = {"view", "apply", "comment", "write", "inquiry", "play"}
 _ADMIN_PERMS = _USER_PERMS | {"admin_access", "content_edit", "manage_users",
-                              "manage_donations", "manage_inquiries", "manage_money"}
+                              "manage_donations", "manage_inquiries", "manage_money",
+                              "timeout"}
 _SUPER_PERMS = _ADMIN_PERMS | {"manage_donate", "manage_bank", "reset_password", "edit_site",
-                               "moderate", "manage_admins", "manage_playground",
-                               "manage_own_money"}
+                               "moderate", "delete_users", "manage_admins",
+                               "manage_playground", "manage_own_money"}
 
 # 역할별 권한표 (높은 등급부터. 소유자는 여기 없는 권한까지 전부 가져요)
 ROLE_PERMISSIONS = {
@@ -105,12 +106,22 @@ def outranks(me: User | None, target: User, permission: str) -> bool:
 
 
 def can_manage_user(me: User | None, target: User) -> bool:
-    """역할 바꾸기·회원 삭제"""
+    """역할 바꾸기"""
     return outranks(me, target, "manage_users")
 
 
+def can_delete_user(me: User | None, target: User) -> bool:
+    """회원 삭제 (총관리자 이상)"""
+    return outranks(me, target, "delete_users")
+
+
+def can_timeout(me: User | None, target: User) -> bool:
+    """타임아웃 걸기·풀기 (관리자 이상)"""
+    return outranks(me, target, "timeout")
+
+
 def can_moderate(me: User | None, target: User) -> bool:
-    """타임아웃·밴 (총관리자 이상)"""
+    """밴 (총관리자 이상)"""
     return outranks(me, target, "moderate")
 
 
