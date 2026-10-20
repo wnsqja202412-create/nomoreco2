@@ -235,6 +235,54 @@ class Coinflip(Base):
     finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
 
+class QuizQuestion(Base):
+    """기후 퀴즈 문제 - 총관리자 이상이 '퀴즈 관리'에서 고쳐요."""
+
+    __tablename__ = "quiz_questions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    question: Mapped[str] = mapped_column(String(300))
+    choices: Mapped[str] = mapped_column(Text)  # 보기를 한 줄에 하나씩 (2~4개)
+    answer: Mapped[int] = mapped_column(Integer, default=0)  # 정답 보기 번호 (0부터)
+    explanation: Mapped[str] = mapped_column(Text, default="")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_kst)
+
+    @property
+    def choice_list(self) -> list[str]:
+        return [line.strip() for line in self.choices.splitlines() if line.strip()]
+
+
+class QuizMatch(Base):
+    """퀴즈 대결 한 판 - 같은 10문제를 서로 다른 순서로 풀고, 10문제를 먼저 다 맞히면 이겨요."""
+
+    __tablename__ = "quiz_matches"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    creator_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    creator_name: Mapped[str] = mapped_column(String(50))
+    joiner_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    joiner_name: Mapped[str] = mapped_column(String(50), default="")
+    winner_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    winner_name: Mapped[str] = mapped_column(String(50), default="")
+    bet: Mapped[int] = mapped_column(Integer, default=0)
+    message: Mapped[str] = mapped_column(String(100), default="")
+    # 각자 푸는 문제 번호 순서 ("3,17,8,...") - 같은 10문제, 다른 순서
+    creator_questions: Mapped[str] = mapped_column(String(200))
+    joiner_questions: Mapped[str] = mapped_column(String(200), default="")
+    creator_progress: Mapped[int] = mapped_column(Integer, default=0)  # 맞힌 문제 수
+    joiner_progress: Mapped[int] = mapped_column(Integer, default=0)
+    creator_wrong: Mapped[int] = mapped_column(Integer, default=0)  # 틀린 횟수
+    joiner_wrong: Mapped[int] = mapped_column(Integer, default=0)
+    creator_wait_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    joiner_wait_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    end_reason: Mapped[str] = mapped_column(String(20), default="")  # solved / forfeit
+    status: Mapped[str] = mapped_column(String(20), default="open", index=True)  # open/playing/done/cancelled
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_kst)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+
 class BankAccount(Base):
     """후원 페이지에 보여 줄 후원 계좌 (총관리자만 고쳐요)"""
 

@@ -1,0 +1,70 @@
+{% extends "playground/layout.html" %}
+{% block title %}기후 퀴즈 대결{% endblock %}
+{% block play %}
+<h2 class="section-title" style="margin:0 0 8px">{{ site.quiz_title }}</h2>
+<p class="muted">{{ site.quiz_lead|nl2br }}</p>
+
+{% if not is_open %}
+  <div class="error">퀴즈 대결이 지금 닫혀 있어요. 하던 대결은 끝까지 할 수 있어요.</div>
+{% elif not enough %}
+  <div class="error">문제가 아직 {{ per_match }}개보다 적어서 대결을 만들 수 없어요.</div>
+{% else %}
+  <form method="post" action="/playground/quiz/new" class="quiz-start" onsubmit="var b=this.querySelector('button');if(b.disabled)return false;b.disabled=true;">
+    <label class="field">판돈 (0원 = 친선전, 걸려면 {{ '{:,}'.format(min_bet) }}원 이상)
+      <input type="number" name="bet" min="0" max="{{ wallet.balance }}" step="100" value="0">
+    </label>
+    <label class="field">한마디 (선택)<input name="message" maxlength="100" placeholder="예: 기후 박사 나와라!"></label>
+    <button class="btn btn-donate btn-lg">⚔️ 대결 시작</button>
+  </form>
+{% endif %}
+
+<h2 class="sub-title">상대를 기다리는 대결</h2>
+<div class="flip-grid">
+  {% for m in open_matches %}
+    <div class="flip-card quiz-card {{ 'flip-mine' if m.creator_id == me.id }}" onclick="if(!event.target.closest('form,a'))location.href='/playground/quiz/{{ m.id }}'">
+      <p class="flip-bet">{{ '{:,}'.format(m.bet) + '원' if m.bet else '친선전' }}</p>
+      <p><b>{{ m.creator_name }}</b>{% if m.creator_id == me.id %} (나){% endif %}</p>
+      {% if m.message %}<p class="flip-msg">“{{ m.message }}”</p>{% endif %}
+      <div class="actions">
+        {% if m.creator_id == me.id %}
+          <a class="btn btn-sm btn-outline" href="/playground/quiz/{{ m.id }}">기다리는 중…</a>
+          <form method="post" action="/playground/quiz/{{ m.id }}/cancel" class="inline" onsubmit="return confirm('대결을 취소할까요?')">
+            <button class="btn btn-sm btn-danger">취소</button>
+          </form>
+        {% elif is_open %}
+          <form method="post" action="/playground/quiz/{{ m.id }}/join" class="inline" {% if m.bet %}onsubmit="return confirm('{{ '{:,}'.format(m.bet) }}원을 걸고 들어갈까요?')"{% endif %}>
+            <button class="btn btn-sm btn-donate" {{ 'disabled' if wallet.balance < m.bet }}>{{ '대결 들어가기' if wallet.balance >= m.bet else '돈이 모자라요' }}</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  {% else %}
+    <p class="muted">지금 기다리는 대결이 없어요. ⚔️ 대결 시작을 눌러 만들어 보세요!</p>
+  {% endfor %}
+</div>
+
+{% if playing %}
+<h2 class="sub-title">진행 중인 대결</h2>
+<div class="table-wrap"><table class="table">
+  <tr><th>판돈</th><th>대결</th><th>맞힌 문제</th><th></th></tr>
+  {% for m in playing %}
+    {% set mine = me.id in (m.creator_id, m.joiner_id) %}
+    <tr><td>{{ '{:,}'.format(m.bet) + '원' if m.bet else '친선전' }}</td>
+      <td>{{ m.creator_name }} vs {{ m.joiner_name }}</td>
+      <td>{{ m.creator_progress }} : {{ m.joiner_progress }}</td>
+      <td><a class="btn btn-sm {{ 'btn-donate' if mine else 'btn-outline' }}" href="/playground/quiz/{{ m.id }}">{{ '이어서 풀기' if mine else '구경하기' }}</a></td></tr>
+  {% endfor %}
+</table></div>
+{% endif %}
+
+<h2 class="sub-title">최근 결과</h2>
+<div class="table-wrap"><table class="table">
+  <tr><th>판돈</th><th>대결</th><th>이긴 사람</th><th>시간</th></tr>
+  {% for m in recent %}
+    <tr><td>{{ '{:,}'.format(m.bet) + '원' if m.bet else '친선전' }}</td>
+      <td><a href="/playground/quiz/{{ m.id }}">{{ m.creator_name }} vs {{ m.joiner_name }}</a></td>
+      <td>🏆 {{ m.winner_name or '—' }}{% if m.end_reason == 'forfeit' %} <small class="muted">(상대 포기)</small>{% endif %}</td>
+      <td>{{ m.finished_at|datetimefmt }}</td></tr>
+  {% else %}<tr><td colspan="4" class="muted">아직 없어요</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

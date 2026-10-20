@@ -1,0 +1,148 @@
+{% extends "playground/layout.html" %}
+{% block title %}퀴즈 대결 #{{ match.id }}{% endblock %}
+{% block play %}
+{% set bet_text = '{:,}'.format(match.bet) + '원' if match.bet else '친선전' %}
+<div class="narrow center">
+  <a class="more" href="/playground/quiz">← 퀴즈 대결 목록</a>
+  <h2 class="section-title" style="margin-top:12px">🧠 퀴즈 대결 #{{ match.id }} · {{ bet_text }}</h2>
+  {% if match.message %}<p class="flip-msg">“{{ match.message }}” — {{ match.creator_name }}</p>{% endif %}
+
+  <div class="quiz-score">
+    <div class="quiz-player {{ 'quiz-me' if side == 'creator' }}">
+      <span>{{ match.creator_name }}{% if side == 'creator' %} (나){% endif %}</span>
+      <div class="quiz-bar"><i id="bar-creator" style="width:{{ match.creator_progress * 100 // per_match }}%"></i></div>
+      <b id="num-creator">{{ match.creator_progress }}</b>/{{ per_match }}
+    </div>
+    <div class="quiz-player {{ 'quiz-me' if side == 'joiner' }}">
+      <span id="joiner-name">{{ match.joiner_name or '???' }}{% if side == 'joiner' %} (나){% endif %}</span>
+      <div class="quiz-bar"><i id="bar-joiner" style="width:{{ match.joiner_progress * 100 // per_match }}%"></i></div>
+      <b id="num-joiner">{{ match.joiner_progress }}</b>/{{ per_match }}
+    </div>
+  </div>
+</div>
+
+<div class="narrow">
+{% if match.status == 'open' %}
+  <div class="flip-box">⚔️</div>
+  <p class="lead center">
+    {% if side == 'creator' %}상대를 기다리고 있어요… 누가 들어오면 바로 시작해요!{% else %}{{ bet_text }} 대결에 들어가 보세요!{% endif %}
+  </p>
+  <div class="actions" style="justify-content:center">
+    {% if side == 'creator' %}
+      <form method="post" action="/playground/quiz/{{ match.id }}/cancel" class="inline" onsubmit="return confirm('대결을 취소할까요?')">
+        <button class="btn btn-danger">대결 취소</button>
+      </form>
+    {% else %}
+      <form method="post" action="/playground/quiz/{{ match.id }}/join" class="inline">
+        <button class="btn btn-donate btn-lg" {{ 'disabled' if wallet.balance < match.bet }}>{{ '대결 들어가기!' if wallet.balance >= match.bet else '돈이 모자라요' }}</button>
+      </form>
+    {% endif %}
+  </div>
+
+{% elif match.status == 'playing' and side %}
+  <div class="quiz-box">
+    <p class="quiz-step">문제 {{ step + 1 }} / {{ per_match }}</p>
+    {% if question %}
+      <h3 class="quiz-question">{{ question.question }}</h3>
+      <form method="post" action="/playground/quiz/{{ match.id }}/answer" class="quiz-choices" id="answer-form">
+        <input type="hidden" name="step" value="{{ step }}">
+        {% for idx, text in choices %}
+          <button class="quiz-choice" name="choice" value="{{ idx }}" {{ 'disabled' if wait }}><span>{{ loop.index }}</span>{{ text }}</button>
+        {% endfor %}
+      </form>
+    {% else %}
+      <h3 class="quiz-question">이 문제는 관리자가 지웠어요. 맞힌 걸로 쳐요!</h3>
+      <form method="post" action="/playground/quiz/{{ match.id }}/answer" class="quiz-choices" id="answer-form">
+        <input type="hidden" name="step" value="{{ step }}">
+        <button class="quiz-choice" name="choice" value="-1">다음 문제로 ➜</button>
+      </form>
+    {% endif %}
+    {% if wait %}<p class="quiz-wait" id="wait-msg">⏳ <b id="wait-sec">{{ wait }}</b>초 뒤에 다시 풀 수 있어요</p>{% endif %}
+  </div>
+  <div class="actions" style="justify-content:center;margin-top:16px">
+    <form method="post" action="/playground/quiz/{{ match.id }}/forfeit" class="inline" onsubmit="return confirm('정말 포기할까요? 상대가 이겨요.')">
+      <button class="btn btn-sm btn-outline">🏳️ 포기하기</button>
+    </form>
+  </div>
+
+{% elif match.status == 'playing' %}
+  <div class="flip-box">👀</div>
+  <p class="lead center">대결이 진행 중이에요. 누가 먼저 10문제를 맞힐까요?</p>
+
+{% elif match.status == 'cancelled' %}
+  <p class="lead center">취소된 대결이에요.</p>
+
+{% else %}
+  <div class="flip-box flip-win">🏆 {{ match.winner_name or '—' }}</div>
+  <p class="lead center">
+    {% if match.end_reason == 'forfeit' %}상대가 포기해서 <b>{{ match.winner_name }}</b>님이 이겼어요!
+    {% else %}<b>{{ match.winner_name }}</b>님이 10문제를 먼저 다 맞혔어요!{% endif %}
+    {% if match.bet %}<br>판돈 {{ '{:,}'.format(match.bet * 2) }}원을 가져갔어요.{% endif %}
+  </p>
+  <div class="table-wrap"><table class="table">
+    <tr><th></th><th>맞힌 문제</th><th>틀린 횟수</th></tr>
+    <tr><td>{{ match.creator_name }}</td><td>{{ match.creator_progress }}/{{ per_match }}</td><td>{{ match.creator_wrong }}번</td></tr>
+    <tr><td>{{ match.joiner_name }}</td><td>{{ match.joiner_progress }}/{{ per_match }}</td><td>{{ match.joiner_wrong }}번</td></tr>
+  </table></div>
+  {% if match.started_at and match.finished_at %}
+    {% set secs = (match.finished_at - match.started_at).total_seconds()|int %}
+    <p class="muted center">걸린 시간 {{ secs // 60 }}분 {{ secs % 60 }}초</p>
+  {% endif %}
+
+  <h2 class="sub-title">📚 문제 다시 보기</h2>
+  <ol class="quiz-review">
+    {% for q in review %}
+      <li>
+        {% if q %}
+          <b>{{ q.question }}</b>
+          <p>✅ {{ q.choice_list[q.answer] if q.answer < q.choice_list|length else '' }}</p>
+          {% if q.explanation %}<p class="muted">{{ q.explanation }}</p>{% endif %}
+        {% else %}<span class="muted">지워진 문제예요</span>{% endif %}
+      </li>
+    {% endfor %}
+  </ol>
+{% endif %}
+</div>
+
+{% if match.status in ('open', 'playing') %}
+<script>
+  (function () {
+    var status = {{ match.status|tojson }}, per = {{ per_match }};
+    function show(who, n) {
+      document.getElementById("num-" + who).textContent = n;
+      document.getElementById("bar-" + who).style.width = (n * 100 / per) + "%";
+    }
+    // 2초마다 물어봐요: 누가 들어왔나요? 상대는 몇 문제 맞혔나요? 끝났나요?
+    var timer = setInterval(function () {
+      fetch("/playground/quiz/{{ match.id }}/status", { headers: { "Accept": "application/json" } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d) return;
+          if (d.status !== status) { clearInterval(timer); location.reload(); return; }
+          show("creator", d.creator_progress);
+          show("joiner", d.joiner_progress);
+        })
+        .catch(function () {});
+    }, 2000);
+
+    // 틀렸을 때: 기다리는 시간이 끝나면 보기 버튼을 다시 켜요.
+    var sec = document.getElementById("wait-sec");
+    if (sec) {
+      var left = parseInt(sec.textContent, 10);
+      var t = setInterval(function () {
+        left -= 1;
+        if (left > 0) { sec.textContent = left; return; }
+        clearInterval(t);
+        document.getElementById("wait-msg").remove();
+        document.querySelectorAll("#answer-form button").forEach(function (b) { b.disabled = false; });
+      }, 1000);
+    }
+    // 보기를 누르면 다른 보기는 못 누르게 해요. (두 번 눌림 방지)
+    var form = document.getElementById("answer-form");
+    if (form) form.addEventListener("submit", function () {
+      setTimeout(function () { form.querySelectorAll("button").forEach(function (b) { b.disabled = true; }); }, 0);
+    });
+  })();
+</script>
+{% endif %}
+{% endblock %}

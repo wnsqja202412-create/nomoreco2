@@ -123,6 +123,16 @@ PLAYGROUND_FIELDS = [
     ("playground_daily", "하루 용돈 (원)", "5000", False),
 ]
 
+# 기후 퀴즈 설정 - 총관리자 이상이 '퀴즈 관리'에서 바꿔요.
+QUIZ_FIELDS = [
+    ("quiz_enabled", "퀴즈 대결 열기 (1 = 열기, 0 = 닫기)", "1", False),
+    ("quiz_title", "퀴즈 제목", "🧠 기후 퀴즈 대결", False),
+    ("quiz_lead", "퀴즈 설명",
+     "NomoreCO2 기후 퀴즈! 50문제 중 10문제가 나와요. 같은 문제를 서로 다른 순서로 풀고, "
+     "10문제를 먼저 다 맞히는 사람이 이겨요.", True),
+    ("quiz_wrong_wait", "틀렸을 때 기다리는 시간 (초)", "3", False),
+]
+
 
 # 문구는 자주 안 바뀌어서, 페이지마다 데이터베이스에서 읽지 않고 잠깐 기억해 둬요.
 # 저장하면 바로 새로 읽어요. (Vercel 서버가 여러 개면 다른 서버에는 최대 10초 늦게 보여요)
@@ -137,7 +147,8 @@ def get_settings(db: Session) -> dict:
         _cache["at"] = now
     saved = _cache["saved"]
     return {key: saved.get(key, default)
-            for key, _, default, _ in SETTING_FIELDS + DONATE_FIELDS + PLAYGROUND_FIELDS}
+            for key, _, default, _ in SETTING_FIELDS + DONATE_FIELDS + PLAYGROUND_FIELDS
+            + QUIZ_FIELDS}
 
 
 def save_settings(db: Session, fields: list, form) -> None:

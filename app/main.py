@@ -12,7 +12,7 @@ from sqlalchemy import text
 from .auth import ROLE_OWNER, Forbidden, LoginRequired
 from .database import Base, SessionLocal, add_missing_columns, engine, schema_fingerprint
 from .models import Setting
-from .routers import admin, auth, playground, public
+from .routers import admin, auth, playground, public, quiz
 from .seed import seed
 from .templating import render
 
@@ -85,6 +85,7 @@ app.include_router(public.router)
 app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(playground.router)
+app.include_router(quiz.router)
 
 
 @app.exception_handler(LoginRequired)

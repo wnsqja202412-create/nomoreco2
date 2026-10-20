@@ -1,0 +1,60 @@
+{% extends "admin/layout.html" %}
+{% block title %}퀴즈 관리{% endblock %}
+{% block admin %}
+<div class="section-head">
+  <h1 style="margin:0">🧠 기후 퀴즈 관리</h1>
+  <span class="badge {{ 'badge-open' if values.quiz_enabled.strip() != '0' else 'badge-banned' }}">{{ '열림' if values.quiz_enabled.strip() != '0' else '닫힘' }}</span>
+</div>
+<p class="muted">퀴즈는 놀이터 안에 있어요. 놀이터가 닫혀 있으면 퀴즈도 못 해요. 사용 중인 문제가 {{ per_match }}개 이상이어야 대결을 만들 수 있어요. (지금 {{ active }}개)</p>
+
+<h2 class="sub-title">퀴즈 설정</h2>
+<form method="post" action="/admin/quiz/settings" class="form">
+  <div class="form-grid">
+    <label class="field">퀴즈 대결
+      <select name="quiz_enabled">
+        <option value="1" {{ 'selected' if values.quiz_enabled.strip() != '0' }}>열기</option>
+        <option value="0" {{ 'selected' if values.quiz_enabled.strip() == '0' }}>닫기 — 새 대결을 못 만들어요 (하던 대결은 끝까지 해요)</option>
+      </select>
+    </label>
+    <label class="field">틀렸을 때 기다리는 시간 (초, 0~30)<input type="number" name="quiz_wrong_wait" min="0" max="30" value="{{ values.quiz_wrong_wait }}"></label>
+  </div>
+  <label class="field">퀴즈 제목<input name="quiz_title" maxlength="100" value="{{ values.quiz_title }}"></label>
+  <label class="field">퀴즈 설명<textarea name="quiz_lead" rows="3">{{ values.quiz_lead }}</textarea></label>
+  <div><button class="btn btn-primary">설정 저장</button></div>
+</form>
+
+<h2 class="sub-title">기다리는·진행 중인 대결</h2>
+<div class="table-wrap"><table class="table">
+  <tr><th>번호</th><th>대결</th><th>판돈</th><th>상태</th><th>맞힌 문제</th><th></th></tr>
+  {% for m in matches %}
+    <tr><td><a href="/playground/quiz/{{ m.id }}">#{{ m.id }}</a></td>
+      <td>{{ m.creator_name }} vs {{ m.joiner_name or '???' }}</td>
+      <td>{{ '{:,}'.format(m.bet) + '원' if m.bet else '친선전' }}</td>
+      <td>{{ '기다리는 중' if m.status == 'open' else '진행 중' }}</td>
+      <td>{{ m.creator_progress }} : {{ m.joiner_progress }}</td>
+      <td><form method="post" action="/admin/quiz/match/{{ m.id }}/cancel" class="inline" onsubmit="return confirm('대결을 취소하고 판돈을 돌려줄까요?')"><button class="btn btn-sm btn-danger">취소·환불</button></form></td></tr>
+  {% else %}<tr><td colspan="6" class="muted">없어요</td></tr>{% endfor %}
+</table></div>
+
+<div class="section-head" id="questions" style="margin-top:32px">
+  <h2 class="sub-title" style="margin:0">문제 ({{ questions|length }}개 · 사용 중 {{ active }}개)</h2>
+  <a class="btn btn-primary" href="/admin/quiz/new">+ 새 문제</a>
+</div>
+<div class="table-wrap"><table class="table">
+  <tr><th>번호</th><th>문제</th><th>정답</th><th>상태</th><th>관리</th></tr>
+  {% for q in questions %}
+    {% set choices = q.choice_list %}
+    <tr>
+      <td>#{{ q.id }}</td>
+      <td class="wrap">{{ q.question }}</td>
+      <td class="wrap">{{ choices[q.answer] if q.answer < choices|length else '⚠️ 없음' }}</td>
+      <td>{% if q.is_active %}<span class="badge badge-open">사용</span>{% else %}<span class="badge badge-closed">쉼</span>{% endif %}</td>
+      <td class="actions">
+        <a class="btn btn-sm btn-outline" href="/admin/quiz/{{ q.id }}/edit">수정</a>
+        <form method="post" action="/admin/quiz/{{ q.id }}/toggle" class="inline"><button class="btn btn-sm btn-outline">{{ '쉬게 하기' if q.is_active else '사용하기' }}</button></form>
+        <form method="post" action="/admin/quiz/{{ q.id }}/delete" class="inline" onsubmit="return confirm('문제 #{{ q.id }}을(를) 지울까요?')"><button class="btn btn-sm btn-danger">삭제</button></form>
+      </td>
+    </tr>
+  {% else %}<tr><td colspan="5" class="muted">문제가 없어요</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

@@ -22,6 +22,7 @@ router = APIRouter(prefix="/playground")
 # 놀이터 게임 목록 (이름, 아이콘, 설명, 주소)
 GAMES = [
     ("코인플립", "🪙", "판돈을 걸고 1:1로 동전 던지기! 이기면 판돈 2배를 가져가요.", "/playground/coinflip"),
+    ("기후 퀴즈 대결", "🧠", "1:1 기후 퀴즈! 10문제를 먼저 다 맞히는 사람이 이겨요.", "/playground/quiz"),
 ]
 
 MIN_BET = 100

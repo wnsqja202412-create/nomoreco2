@@ -1,0 +1,24 @@
+{% extends "admin/layout.html" %}
+{% block title %}{{ '문제 수정' if item else '새 문제' }}{% endblock %}
+{% block admin %}
+{% set q = draft if draft is defined else item %}
+{% set choices = q.choice_list if q else [] %}
+<h1>{{ '문제 #' ~ item.id ~ ' 수정' if item else '새 문제' }}</h1>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<form method="post" class="form">
+  <label class="field">문제<textarea name="question" rows="2" maxlength="300" required>{{ q.question if q else '' }}</textarea></label>
+  <p class="muted">보기는 2~4개 써 주세요. 정답인 보기 왼쪽 동그라미를 골라요. 대결 화면에서는 보기 순서가 사람마다 섞여서 나와요.</p>
+  {% for i in range(4) %}
+    <label class="field">
+      <span><input type="radio" name="answer" value="{{ i + 1 }}" {{ 'checked' if (q and q.answer == i) or (not q and i == 0) }}> 보기 {{ i + 1 }}{% if i < 2 %} (꼭 써요){% endif %}</span>
+      <input name="choice{{ i + 1 }}" maxlength="200" value="{{ choices[i] if i < choices|length else '' }}" {{ 'required' if i < 2 }}>
+    </label>
+  {% endfor %}
+  <label class="field">해설 (대결이 끝난 뒤 보여요)<textarea name="explanation" rows="3" maxlength="1000">{{ q.explanation if q else '' }}</textarea></label>
+  <label class="check"><input type="checkbox" name="is_active" {{ 'checked' if not q or q.is_active }}> 대결에 사용하기</label>
+  <div class="actions">
+    <button class="btn btn-primary">저장</button>
+    <a class="btn btn-outline" href="/admin/quiz#questions">취소</a>
+  </div>
+</form>
+{% endblock %}

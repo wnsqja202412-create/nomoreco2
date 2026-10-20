@@ -16,11 +16,13 @@ from ..database import get_db
 from ..images import delete_image_url, photo_upload, resolve_image
 from ..models import (APPLICATION_STATUSES, CATEGORIES, DONATION_STATUSES, INQUIRY_STATUSES,
                       Application, BankAccount, BoardPost, Coinflip, Comment, Donation, Image,
-                      Inquiry, InquiryMessage, MoneyLog, Post, Recruitment, User, Wallet, now_kst)
-from ..site import (DONATE_FIELDS, PLAYGROUND_FIELDS, SETTING_FIELDS, SETTING_GROUPS,
-                    get_settings, save_settings)
+                      Inquiry, InquiryMessage, MoneyLog, Post, QuizMatch, QuizQuestion,
+                      Recruitment, User, Wallet, now_kst)
+from ..site import (DONATE_FIELDS, PLAYGROUND_FIELDS, QUIZ_FIELDS, SETTING_FIELDS,
+                    SETTING_GROUPS, get_settings, save_settings)
 from ..templating import flash, render
 from .playground import cancel_flip
+from .quiz import QUESTIONS_PER_MATCH, cancel_match
 
 router = APIRouter(prefix="/admin", dependencies=[Depends(require_permission("admin_access"))])
 content_editor = require_permission("content_edit")
@@ -36,6 +38,7 @@ user_deleter = require_permission("delete_users")
 site_editor = require_permission("edit_site")
 money_manager = require_permission("manage_money")
 playground_manager = require_permission("manage_playground")
+quiz_manager = require_permission("manage_quiz")
 
 # 타임아웃 시간 단위 (보여 줄 이름, 분) - 숫자와 단위를 직접 골라요.
 TIMEOUT_UNITS = {"분": 1, "시간": 60, "일": 60 * 24}
@@ -639,3 +642,125 @@ def playground_cancel_flip(flip_id: int, request: Request, db: Session = Depends
     else:
         flash(request, "이미 끝난 게임이에요.")
     return go("/admin/playground")
+
+
+# ---------- 기후 퀴즈 관리 - 총관리자 이상 ----------
+
+@router.get("/quiz")
+def quiz_admin(request: Request, db: Session = Depends(get_db), _=Depends(quiz_manager)):
+    questions = db.query(QuizQuestion).order_by(QuizQuestion.id).all()
+    matches = (db.query(QuizMatch).filter(QuizMatch.status.in_(["open", "playing"]))
+               .order_by(QuizMatch.id.desc()).all())
+    return render(request, "admin/quiz.html", db, questions=questions, matches=matches,
+                  fields=QUIZ_FIELDS, values=get_settings(db), per_match=QUESTIONS_PER_MATCH,
+                  active=sum(q.is_active for q in questions))
+
+
+@router.post("/quiz/settings")
+async def quiz_settings(request: Request, db: Session = Depends(get_db),
+                        _=Depends(quiz_manager)):
+    save_settings(db, QUIZ_FIELDS, await request.form())
+    flash(request, "퀴즈 설정을 저장했어요.")
+    return go("/admin/quiz")
+
+
+def _question_form(question: str, choice1: str, choice2: str, choice3: str, choice4: str,
+                   answer: str, explanation: str) -> tuple[dict | None, str]:
+    """문제 입력값을 확인해요. 빈 보기는 빼고, 정답 번호도 그에 맞춰 바꿔요."""
+    raw = [c.strip()[:200] for c in (choice1, choice2, choice3, choice4)]
+    picked = int(answer) - 1 if answer.isdigit() else -1
+    if not question.strip():
+        return None, "문제를 써 주세요."
+    if not (0 <= picked < 4) or not raw[picked]:
+        return None, "정답 보기를 고르고, 그 보기에 글을 써 주세요."
+    choices = [c for c in raw if c]
+    if len(choices) < 2:
+        return None, "보기는 2개 이상 써 주세요."
+    return dict(question=question.strip()[:300], choices="\n".join(choices),
+                answer=sum(1 for c in raw[:picked] if c),
+                explanation=explanation.strip()[:1000]), ""
+
+
+@router.get("/quiz/new")
+def quiz_question_new(request: Request, db: Session = Depends(get_db), _=Depends(quiz_manager)):
+    return render(request, "admin/quiz_form.html", db, item=None)
+
+
+@router.post("/quiz/new")
+def quiz_question_create(
+    request: Request, db: Session = Depends(get_db), _=Depends(quiz_manager),
+    question: str = Form(""), choice1: str = Form(""), choice2: str = Form(""),
+    choice3: str = Form(""), choice4: str = Form(""), answer: str = Form(""),
+    explanation: str = Form(""), is_active: str | None = Form(None),
+):
+    data, error = _question_form(question, choice1, choice2, choice3, choice4, answer, explanation)
+    if data is None:
+        draft = SimpleNamespace(question=question, explanation=explanation, is_active=bool(is_active),
+                                choice_list=[choice1, choice2, choice3, choice4],
+                                answer=int(answer) - 1 if answer.isdigit() else 0)
+        return render(request, "admin/quiz_form.html", db, status_code=400, item=None,
+                      draft=draft, error=error)
+    db.add(QuizQuestion(**data, is_active=bool(is_active)))
+    db.commit()
+    flash(request, "새 문제를 만들었어요.")
+    return go("/admin/quiz#questions")
+
+
+@router.get("/quiz/{item_id}/edit")
+def quiz_question_edit(item_id: int, request: Request, db: Session = Depends(get_db),
+                       _=Depends(quiz_manager)):
+    return render(request, "admin/quiz_form.html", db, item=get_or_404(db, QuizQuestion, item_id))
+
+
+@router.post("/quiz/{item_id}/edit")
+def quiz_question_update(
+    item_id: int, request: Request, db: Session = Depends(get_db), _=Depends(quiz_manager),
+    question: str = Form(""), choice1: str = Form(""), choice2: str = Form(""),
+    choice3: str = Form(""), choice4: str = Form(""), answer: str = Form(""),
+    explanation: str = Form(""), is_active: str | None = Form(None),
+):
+    item = get_or_404(db, QuizQuestion, item_id)
+    data, error = _question_form(question, choice1, choice2, choice3, choice4, answer, explanation)
+    if data is None:
+        draft = SimpleNamespace(question=question, explanation=explanation, is_active=bool(is_active),
+                                choice_list=[choice1, choice2, choice3, choice4],
+                                answer=int(answer) - 1 if answer.isdigit() else 0)
+        return render(request, "admin/quiz_form.html", db, status_code=400, item=item,
+                      draft=draft, error=error)
+    for key, value in data.items():
+        setattr(item, key, value)
+    item.is_active = bool(is_active)
+    db.commit()
+    flash(request, f"문제 #{item.id}을(를) 고쳤어요.")
+    return go("/admin/quiz#questions")
+
+
+@router.post("/quiz/{item_id}/toggle")
+def quiz_question_toggle(item_id: int, request: Request, db: Session = Depends(get_db),
+                         _=Depends(quiz_manager)):
+    item = get_or_404(db, QuizQuestion, item_id)
+    item.is_active = not item.is_active
+    db.commit()
+    flash(request, f"문제 #{item.id}을(를) {'사용해요' if item.is_active else '쉬게 했어요'}.")
+    return go("/admin/quiz#questions")
+
+
+@router.post("/quiz/{item_id}/delete")
+def quiz_question_delete(item_id: int, request: Request, db: Session = Depends(get_db),
+                         _=Depends(quiz_manager)):
+    db.delete(get_or_404(db, QuizQuestion, item_id))
+    db.commit()
+    flash(request, "문제를 지웠어요.")
+    return go("/admin/quiz#questions")
+
+
+@router.post("/quiz/match/{match_id}/cancel")
+def quiz_match_cancel(match_id: int, request: Request, db: Session = Depends(get_db),
+                      me: User = Depends(quiz_manager)):
+    match = get_or_404(db, QuizMatch, match_id)
+    if cancel_match(db, match, f"퀴즈 대결 #{match.id} 관리자 취소 (돌려받음)", me.id):
+        db.commit()
+        flash(request, f"퀴즈 대결 #{match.id}을(를) 취소하고 판돈을 돌려줬어요.")
+    else:
+        flash(request, "이미 끝난 대결이에요.")
+    return go("/admin/quiz")

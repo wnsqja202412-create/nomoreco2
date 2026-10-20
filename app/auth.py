@@ -28,7 +28,7 @@ _ADMIN_PERMS = _USER_PERMS | {"admin_access", "content_edit", "manage_users",
                               "timeout"}
 _SUPER_PERMS = _ADMIN_PERMS | {"manage_donate", "manage_bank", "reset_password", "edit_site",
                                "moderate", "delete_users", "manage_admins",
-                               "manage_playground", "manage_own_money"}
+                               "manage_playground", "manage_own_money", "manage_quiz"}
 
 # 역할별 권한표 (높은 등급부터. 소유자는 여기 없는 권한까지 전부 가져요)
 ROLE_PERMISSIONS = {

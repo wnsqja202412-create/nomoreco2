@@ -5,7 +5,8 @@ from sqlalchemy.exc import IntegrityError
 
 from .auth import ROLE_OWNER, ROLE_SUPER, hash_password
 from .database import SessionLocal
-from .models import BoardPost, Post, Recruitment, User
+from .models import BoardPost, Post, QuizQuestion, Recruitment, Setting, User
+from .quiz_data import QUIZ_QUESTIONS
 
 SAMPLE_POSTS = [
     dict(
@@ -98,6 +99,13 @@ def seed() -> None:
             ))
         if db.query(Recruitment).count() == 0:
             db.add_all(Recruitment(**r) for r in SAMPLE_RECRUITMENTS)
+        # 퀴즈 문제는 딱 한 번만 넣어요. (관리자가 다 지워도 다시 생기지 않게)
+        if db.get(Setting, "quiz_seeded") is None:
+            if db.query(QuizQuestion).count() == 0:
+                db.add_all(QuizQuestion(question=q, choices="\n".join(choices), answer=0,
+                                        explanation=why)
+                           for q, choices, why in QUIZ_QUESTIONS)
+            db.add(Setting(key="quiz_seeded", value="1"))
         db.commit()
     except IntegrityError:
         # 서버 여러 개가 동시에 시작하면 이미 들어가 있을 수 있어요.

@@ -17,6 +17,9 @@
       {% if has_perm(user, 'manage_money') %}
         <a href="/admin/playground" class="{{ 'active' if path.startswith('/admin/playground') }}">놀이터 관리</a>
       {% endif %}
+      {% if has_perm(user, 'manage_quiz') %}
+        <a href="/admin/quiz" class="{{ 'active' if path.startswith('/admin/quiz') }}">퀴즈 관리</a>
+      {% endif %}
       {% if has_perm(user, 'manage_donate') %}
         <a href="/admin/donate" class="{{ 'active' if path == '/admin/donate' }}">후원 페이지 관리</a>
       {% endif %}
