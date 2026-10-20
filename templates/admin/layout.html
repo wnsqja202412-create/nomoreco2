@@ -5,6 +5,9 @@
   <div class="container admin-grid">
     <aside class="admin-side">
       <p class="admin-badge">🔑 {{ ROLE_LABELS.get(user.role, '관리자') }} 모드</p>
+      {% if has_perm(user, 'lock_site') %}
+        <a href="/admin/lock" class="{{ 'active' if path.startswith('/admin/lock') }}">🔒 사이트 잠금</a>
+      {% endif %}
       <a href="/admin" class="{{ 'active' if path == '/admin' }}">대시보드</a>
       <a href="/admin/posts" class="{{ 'active' if path.startswith('/admin/posts') }}">활동 글 관리</a>
       <a href="/admin/board" class="{{ 'active' if path.startswith('/admin/board') }}">게시판 관리</a>

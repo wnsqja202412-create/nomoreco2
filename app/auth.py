@@ -22,7 +22,7 @@ ROLE_SUPER = "superadmin"
 ROLE_ADMIN = "admin"
 ROLE_USER = "user"
 
-_USER_PERMS = {"view", "apply", "comment", "write", "inquiry", "play"}
+_USER_PERMS = {"view", "apply", "comment", "write", "inquiry", "play", "quiz"}
 _ADMIN_PERMS = _USER_PERMS | {"admin_access", "content_edit", "manage_users",
                               "manage_donations", "manage_inquiries", "manage_money",
                               "timeout"}

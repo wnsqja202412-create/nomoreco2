@@ -23,6 +23,9 @@
         <a href="/board" class="{{ 'active' if path.startswith('/board') }}">게시판</a>
         <a href="/join" class="{{ 'active' if path.startswith('/join') }}">함께하기</a>
         <a href="/inquiry" class="{{ 'active' if path.startswith('/inquiry') }}">문의하기</a>
+        {% if site.quiz_enabled.strip() != '0' %}
+          <a href="/quiz" class="{{ 'active' if path.startswith('/quiz') }}">기후 퀴즈</a>
+        {% endif %}
         {% if site.playground_enabled.strip() != '0' %}
           <a href="/playground" class="{{ 'active' if path.startswith('/playground') }}">놀이터</a>
         {% endif %}
@@ -40,6 +43,9 @@
     </div>
   </header>
 
+  {% if user and user.role == 'owner' and site.site_lock.strip() in ('maintenance', 'blocked') %}
+    <div class="container"><div class="error">🔒 사이트가 <b>{{ '점검 중' if site.site_lock.strip() == 'maintenance' else '차단' }}</b> 상태예요. 지금은 소유자인 나만 보여요. <a href="/admin/lock">잠금 풀기</a></div></div>
+  {% endif %}
   {% if timed_out(user) %}
     <div class="container"><div class="error">⏳ <b>{{ user.timeout_until|datetimefmt }}</b>까지 활동이 정지됐어요. 그동안 글·댓글·신청은 할 수 없고, 보기와 <a href="/inquiry">문의하기</a>만 할 수 있어요.{% if user.timeout_reason %} (사유: {{ user.timeout_reason }}){% endif %}</div></div>
   {% endif %}

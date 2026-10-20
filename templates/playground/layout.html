@@ -27,7 +27,6 @@
     <div class="tabs" style="margin-bottom:24px">
       <a href="/playground" class="{{ 'active' if path == '/playground' }}">🏠 놀이터 홈</a>
       <a href="/playground/coinflip" class="{{ 'active' if path.startswith('/playground/coinflip') }}">🪙 코인플립</a>
-      <a href="/playground/quiz" class="{{ 'active' if path.startswith('/playground/quiz') }}">🧠 기후 퀴즈</a>
     </div>
     {% block play %}{% endblock %}
   </div>

@@ -1,20 +1,22 @@
 import os
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
-from .auth import ROLE_OWNER, Forbidden, LoginRequired
-from .database import Base, SessionLocal, add_missing_columns, engine, schema_fingerprint
+from .auth import ROLE_OWNER, Forbidden, LoginRequired, get_current_user
+from .database import Base, SessionLocal, add_missing_columns, engine, get_db, schema_fingerprint
 from .models import Setting
 from .routers import admin, auth, playground, public, quiz
 from .seed import seed
-from .templating import render
+from .site import LOCK_MODES, get_settings, lock_mode
+from .templating import render, templates
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -69,7 +71,27 @@ class VercelPathFix:
         await self.app(scope, receive, send)
 
 
-app = FastAPI(title="NomoreCO2", docs_url=None, redoc_url=None)
+class SiteLocked(Exception):
+    def __init__(self, mode: str):
+        self.mode = mode
+
+
+# 사이트가 잠겨 있어도 열어 두는 주소 - 소유자가 로그인할 수 있어야 해요.
+LOCK_OPEN_PATHS = {"/login", "/logout"}
+
+
+def site_gate(request: Request, db: Session = Depends(get_db)) -> None:
+    """사이트 문지기 - 잠겨 있으면 소유자 말고는 모두 점검/차단 화면을 봐요."""
+    mode = lock_mode(get_settings(db))
+    if mode is None or request.url.path in LOCK_OPEN_PATHS:
+        return
+    user = get_current_user(request, db)
+    if user is None or user.role != ROLE_OWNER:
+        raise SiteLocked(mode)
+
+
+app = FastAPI(title="NomoreCO2", docs_url=None, redoc_url=None,
+              dependencies=[Depends(site_gate)])
 app.add_middleware(VercelPathFix)
 app.add_middleware(
     SessionMiddleware,
@@ -102,6 +124,18 @@ def _error_page(request: Request, status_code: int, message: str):
         db.close()
 
 
+@app.exception_handler(SiteLocked)
+async def site_locked_handler(request: Request, exc: SiteLocked):
+    db = SessionLocal()
+    try:
+        icon, title, text = LOCK_MODES[exc.mode]
+        return templates.TemplateResponse(
+            request, "locked.html", {"site": get_settings(db), "icon": icon, "title": title,
+                                     "text": text}, status_code=503)
+    finally:
+        db.close()
+
+
 @app.exception_handler(Forbidden)
 async def forbidden_handler(request: Request, exc: Forbidden):
     return _error_page(request, 403, "이 일을 할 권한이 없어요.")
@@ -114,5 +148,13 @@ async def playground_closed_handler(request: Request, exc: playground.Playground
 
 @app.exception_handler(StarletteHTTPException)
 async def http_error_handler(request: Request, exc: StarletteHTTPException):
+    # 없는 주소는 문지기를 거치지 않아서, 잠겨 있으면 여기서도 잠금 화면을 보여 줘요.
+    db = SessionLocal()
+    try:
+        site_gate(request, db)
+    except SiteLocked as locked:
+        return await site_locked_handler(request, locked)
+    finally:
+        db.close()
     message = "페이지를 찾을 수 없어요." if exc.status_code == 404 else "문제가 생겼어요."
     return _error_page(request, exc.status_code, message)

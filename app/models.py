@@ -265,7 +265,6 @@ class QuizMatch(Base):
     joiner_name: Mapped[str] = mapped_column(String(50), default="")
     winner_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     winner_name: Mapped[str] = mapped_column(String(50), default="")
-    bet: Mapped[int] = mapped_column(Integer, default=0)
     message: Mapped[str] = mapped_column(String(100), default="")
     # 각자 푸는 문제 번호 순서 ("3,17,8,...") - 같은 10문제, 다른 순서
     creator_questions: Mapped[str] = mapped_column(String(200))

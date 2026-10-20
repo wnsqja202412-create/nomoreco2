@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }} | NomoreCO2</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="locked-page">
+  <main class="locked-box">
+    <a class="logo" href="/">NomoreCO<sub>2</sub></a>
+    <div class="big-emoji">{{ icon }}</div>
+    <h1>{{ title }}</h1>
+    <p class="lead">{{ text }}</p>
+    {% if site.site_lock_message.strip() %}<p class="locked-note">{{ site.site_lock_message|nl2br }}</p>{% endif %}
+    <p class="muted"><small>{{ site.contact_email }}</small></p>
+    <a class="locked-login" href="/login">관리자 로그인</a>
+  </main>
+</body>
+</html>

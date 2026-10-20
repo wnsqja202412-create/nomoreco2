@@ -7,7 +7,7 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from .models import Coinflip, MoneyLog, QuizMatch, Wallet, now_kst
+from .models import Coinflip, MoneyLog, Wallet, now_kst
 from .site import get_settings
 
 
@@ -77,26 +77,12 @@ def claim_daily(db: Session, user_id: int) -> int:
 
 
 def forget_user(db: Session, user_id: int) -> None:
-    """회원을 지울 때 놀이터 기록을 정리해요.
-    (기다리던 코인플립·퀴즈 대결은 취소되고, 하던 퀴즈 대결은 상대에게 판돈을 돌려줘요)"""
+    """회원을 지울 때 놀이터 기록을 정리해요. (기다리던 코인플립은 취소돼요)"""
     db.query(Coinflip).filter(Coinflip.creator_id == user_id, Coinflip.status == "open") \
         .update({"status": "cancelled"}, synchronize_session=False)
     for column in (Coinflip.creator_id, Coinflip.joiner_id, Coinflip.winner_id):
         db.query(Coinflip).filter(column == user_id).update({column: None},
                                                             synchronize_session=False)
-    db.query(QuizMatch).filter(QuizMatch.creator_id == user_id, QuizMatch.status == "open") \
-        .update({"status": "cancelled"}, synchronize_session=False)
-    playing = db.query(QuizMatch).filter(
-        QuizMatch.status == "playing",
-        or_(QuizMatch.creator_id == user_id, QuizMatch.joiner_id == user_id)).all()
-    for match in playing:
-        other = match.joiner_id if match.creator_id == user_id else match.creator_id
-        match.status, match.finished_at = "cancelled", now_kst()
-        if match.bet and other is not None:
-            change(db, other, match.bet, f"퀴즈 대결 #{match.id} 취소 (상대 탈퇴, 돌려받음)")
-    for column in (QuizMatch.creator_id, QuizMatch.joiner_id, QuizMatch.winner_id):
-        db.query(QuizMatch).filter(column == user_id).update({column: None},
-                                                             synchronize_session=False)
     db.query(MoneyLog).filter(MoneyLog.user_id == user_id).update({"user_id": None},
                                                                   synchronize_session=False)
     db.query(MoneyLog).filter(MoneyLog.actor_id == user_id).update({"actor_id": None},

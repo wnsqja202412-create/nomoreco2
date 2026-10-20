@@ -18,10 +18,11 @@ from ..models import (APPLICATION_STATUSES, CATEGORIES, DONATION_STATUSES, INQUI
                       Application, BankAccount, BoardPost, Coinflip, Comment, Donation, Image,
                       Inquiry, InquiryMessage, MoneyLog, Post, QuizMatch, QuizQuestion,
                       Recruitment, User, Wallet, now_kst)
-from ..site import (DONATE_FIELDS, PLAYGROUND_FIELDS, QUIZ_FIELDS, SETTING_FIELDS,
-                    SETTING_GROUPS, get_settings, save_settings)
+from ..site import (DONATE_FIELDS, LOCK_FIELDS, LOCK_MODES, PLAYGROUND_FIELDS, QUIZ_FIELDS,
+                    SETTING_FIELDS, SETTING_GROUPS, get_settings, lock_mode, save_settings)
 from ..templating import flash, render
 from .playground import cancel_flip
+from . import quiz
 from .quiz import QUESTIONS_PER_MATCH, cancel_match
 
 router = APIRouter(prefix="/admin", dependencies=[Depends(require_permission("admin_access"))])
@@ -39,6 +40,8 @@ site_editor = require_permission("edit_site")
 money_manager = require_permission("manage_money")
 playground_manager = require_permission("manage_playground")
 quiz_manager = require_permission("manage_quiz")
+# 권한표 어디에도 없는 권한이라 소유자만 가져요.
+site_locker = require_permission("lock_site")
 
 # 타임아웃 시간 단위 (보여 줄 이름, 분) - 숫자와 단위를 직접 골라요.
 TIMEOUT_UNITS = {"분": 1, "시간": 60, "일": 60 * 24}
@@ -349,6 +352,7 @@ def user_delete(user_id: int, request: Request, db: Session = Depends(get_db),
     for model in (Application, Donation, Comment, BoardPost, Inquiry, InquiryMessage, Image):
         db.query(model).filter_by(user_id=target.id).update({"user_id": None})
     wallet.forget_user(db, target.id)
+    quiz.forget_user(db, target.id)
     db.delete(target)
     db.commit()
     flash(request, f"{target.username} 회원을 지웠어요.")
@@ -756,11 +760,32 @@ def quiz_question_delete(item_id: int, request: Request, db: Session = Depends(g
 
 @router.post("/quiz/match/{match_id}/cancel")
 def quiz_match_cancel(match_id: int, request: Request, db: Session = Depends(get_db),
-                      me: User = Depends(quiz_manager)):
+                      _=Depends(quiz_manager)):
     match = get_or_404(db, QuizMatch, match_id)
-    if cancel_match(db, match, f"퀴즈 대결 #{match.id} 관리자 취소 (돌려받음)", me.id):
+    if cancel_match(db, match):
         db.commit()
-        flash(request, f"퀴즈 대결 #{match.id}을(를) 취소하고 판돈을 돌려줬어요.")
+        flash(request, f"퀴즈 대결 #{match.id}을(를) 취소했어요.")
     else:
         flash(request, "이미 끝난 대결이에요.")
     return go("/admin/quiz")
+
+
+# ---------- 사이트 잠금 - 소유자만 ----------
+
+@router.get("/lock")
+def lock_page(request: Request, db: Session = Depends(get_db), _=Depends(site_locker)):
+    values = get_settings(db)
+    return render(request, "admin/lock.html", db, modes=LOCK_MODES, values=values,
+                  current=lock_mode(values))
+
+
+@router.post("/lock")
+async def lock_save(request: Request, db: Session = Depends(get_db), _=Depends(site_locker)):
+    form = dict(await request.form())
+    if form.get("site_lock") not in LOCK_MODES:
+        form["site_lock"] = "off"
+    save_settings(db, LOCK_FIELDS, form)
+    mode = form["site_lock"]
+    flash(request, f"🔒 사이트를 잠갔어요: {LOCK_MODES[mode][1]}. 이제 소유자만 들어올 수 있어요."
+          if mode in LOCK_MODES else "🔓 사이트 잠금을 풀었어요. 모두 다시 들어올 수 있어요.")
+    return go("/admin/lock")

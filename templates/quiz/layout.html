@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-hero page-hero-quiz">
+  <div class="container">
+    <p class="eyebrow">CLIMATE QUIZ</p>
+    <h1>{{ site.quiz_title }}</h1>
+    <p>{{ site.quiz_lead|nl2br }}</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    {% block quiz %}{% endblock %}
+  </div>
+</section>
+{% endblock %}

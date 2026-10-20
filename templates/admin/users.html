@@ -11,7 +11,7 @@
       <td class="wrap">{% if role == 'owner' %}<b>모든 것</b> — 총관리자가 할 수 있는 모든 일 + 총관리자 관리 (서버에 딱 한 명, 아무도 못 바꿔요){% else %}{{ role_permissions[role]|sort|join(', ') }}{% endif %}</td></tr>
   {% endfor %}
 </table></div>
-<p class="muted">view=보기 · apply=후원·지원 신청 · comment=댓글 · write=게시판 글쓰기 · inquiry=문의하기 · admin_access=관리자 페이지 · content_edit=모든 글 수정·삭제 · manage_users=아래 등급 회원 관리 · manage_donations=후원 신청 확인 · manage_inquiries=문의 답변 · manage_donate=후원 페이지 관리 · manage_bank=후원 계좌 · reset_password=아래 등급 이름·비밀번호 바꾸기 · edit_site=사이트 문구 · timeout=타임아웃 · moderate=밴 · delete_users=회원 삭제 · manage_admins=관리자 관리 · manage_superadmins=총관리자 관리</p>
+<p class="muted">view=보기 · apply=후원·지원 신청 · comment=댓글 · write=게시판 글쓰기 · inquiry=문의하기 · play=놀이터 · quiz=기후 퀴즈 · manage_quiz=퀴즈 관리 · admin_access=관리자 페이지 · content_edit=모든 글 수정·삭제 · manage_users=아래 등급 회원 관리 · manage_donations=후원 신청 확인 · manage_inquiries=문의 답변 · manage_donate=후원 페이지 관리 · manage_bank=후원 계좌 · reset_password=아래 등급 이름·비밀번호 바꾸기 · edit_site=사이트 문구 · timeout=타임아웃 · moderate=밴 · delete_users=회원 삭제 · manage_admins=관리자 관리 · manage_superadmins=총관리자 관리 · lock_site=사이트 잠금 (소유자만)</p>
 <ul class="muted">
   <li>누구든 <b>나보다 낮은 등급</b>만 역할 변경·삭제·제재할 수 있어요. 같은 등급끼리는 서로 못 건드려요.</li>
   <li><b>관리자</b>는 회원을 지우거나 밴할 수 없고, <b>타임아웃</b>만 할 수 있어요. 삭제·밴은 총관리자 이상만 해요.</li>

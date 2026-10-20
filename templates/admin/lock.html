@@ -1,0 +1,29 @@
+{% extends "admin/layout.html" %}
+{% block title %}사이트 잠금{% endblock %}
+{% block admin %}
+<div class="section-head">
+  <h1 style="margin:0">🔒 사이트 잠금</h1>
+  {% if current %}<span class="badge badge-banned">잠김 · {{ modes[current][1] }}</span>{% else %}<span class="badge badge-open">열림</span>{% endif %}
+</div>
+<p class="notice-box">👑 소유자만 볼 수 있는 화면이에요. 사이트를 잠그면 <b>소유자 말고는 모두</b>(총관리자·관리자 포함) 아래 화면만 보게 돼요.
+  잠겨 있어도 로그인 화면은 열려 있어서, 소유자는 언제든 로그인해서 잠금을 풀 수 있어요.</p>
+
+<form method="post" class="form">
+  <div class="lock-options">
+    <label class="lock-option">
+      <input type="radio" name="site_lock" value="off" {{ 'checked' if not current }}>
+      <span><b>🔓 열기</b><small>모두 평소처럼 들어올 수 있어요.</small></span>
+    </label>
+    {% for key, (icon, title, text) in modes.items() %}
+      <label class="lock-option">
+        <input type="radio" name="site_lock" value="{{ key }}" {{ 'checked' if current == key }}>
+        <span><b>{{ icon }} {{ title }}</b><small>{{ text }}</small></span>
+      </label>
+    {% endfor %}
+  </div>
+  <label class="field">잠금 화면에 덧붙일 말 (선택, 비우면 안 보여요)
+    <textarea name="site_lock_message" rows="3" maxlength="500" placeholder="예: 오늘 밤 10시까지 점검해요.">{{ values.site_lock_message }}</textarea>
+  </label>
+  <div><button class="btn btn-primary" onclick="var c=this.form.site_lock.value;return c==='off'||confirm('사이트를 잠글까요? 소유자 말고는 아무도 못 들어와요.')">저장하기</button></div>
+</form>
+{% endblock %}

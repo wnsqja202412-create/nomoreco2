@@ -133,6 +133,17 @@ QUIZ_FIELDS = [
     ("quiz_wrong_wait", "틀렸을 때 기다리는 시간 (초)", "3", False),
 ]
 
+# 사이트 잠금 - 소유자만 '사이트 잠금'에서 바꿔요. 잠그면 소유자 말고는 아무도 못 들어와요.
+LOCK_MODES = {
+    "maintenance": ("🛠️", "사이트 점검 중이에요",
+                    "더 좋은 사이트를 만들기 위해 점검하고 있어요. 잠시 뒤에 다시 와 주세요!"),
+    "blocked": ("🚫", "사이트 접속이 차단되었어요", "지금은 사이트를 이용할 수 없어요."),
+}
+LOCK_FIELDS = [
+    ("site_lock", "사이트 잠금 (off / maintenance / blocked)", "off", False),
+    ("site_lock_message", "잠금 화면에 덧붙일 말 (비우면 안 보여요)", "", True),
+]
+
 
 # 문구는 자주 안 바뀌어서, 페이지마다 데이터베이스에서 읽지 않고 잠깐 기억해 둬요.
 # 저장하면 바로 새로 읽어요. (Vercel 서버가 여러 개면 다른 서버에는 최대 10초 늦게 보여요)
@@ -148,7 +159,13 @@ def get_settings(db: Session) -> dict:
     saved = _cache["saved"]
     return {key: saved.get(key, default)
             for key, _, default, _ in SETTING_FIELDS + DONATE_FIELDS + PLAYGROUND_FIELDS
-            + QUIZ_FIELDS}
+            + QUIZ_FIELDS + LOCK_FIELDS}
+
+
+def lock_mode(site: dict) -> str | None:
+    """지금 잠금 상태 - 'maintenance', 'blocked', 아니면 None(열림)"""
+    mode = site["site_lock"].strip()
+    return mode if mode in LOCK_MODES else None
 
 
 def save_settings(db: Session, fields: list, form) -> None:
