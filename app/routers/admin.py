@@ -16,14 +16,14 @@ from ..database import get_db
 from ..images import delete_image_url, photo_upload, resolve_image
 from ..models import (APPLICATION_STATUSES, CATEGORIES, DONATION_STATUSES, INQUIRY_STATUSES,
                       Application, BankAccount, BoardPost, Coinflip, Comment, Donation, Image,
-                      Inquiry, InquiryMessage, MoneyLog, Post, QuizGame, QuizQuestion,
+                      Inquiry, InquiryMessage, MoneyLog, Post, QuizQuestion, QuizRoom,
                       Recruitment, User, Wallet, now_kst)
 from ..site import (DONATE_FIELDS, LOCK_FIELDS, LOCK_MODES, PLAYGROUND_FIELDS, QUIZ_FIELDS,
                     QUIZ_MATCH_MODES, SETTING_FIELDS, SETTING_GROUPS, get_settings, lock_mode, save_settings)
 from ..templating import flash, render
 from .playground import cancel_flip
 from . import quiz
-from .quiz import QUESTIONS_PER_MATCH, cancel_game
+from .quiz import QUESTIONS_PER_MATCH, cancel_room
 
 router = APIRouter(prefix="/admin", dependencies=[Depends(require_permission("admin_access"))])
 content_editor = require_permission("content_edit")
@@ -653,9 +653,9 @@ def playground_cancel_flip(flip_id: int, request: Request, db: Session = Depends
 @router.get("/quiz")
 def quiz_admin(request: Request, db: Session = Depends(get_db), _=Depends(quiz_manager)):
     questions = db.query(QuizQuestion).order_by(QuizQuestion.id).all()
-    games = (db.query(QuizGame).filter(QuizGame.status.in_(["waiting", "playing"]))
-             .order_by(QuizGame.id.desc()).all())
-    return render(request, "admin/quiz.html", db, questions=questions, games=games,
+    rooms = (db.query(QuizRoom).filter(QuizRoom.status.in_(["waiting", "playing"]))
+             .order_by(QuizRoom.id.desc()).all())
+    return render(request, "admin/quiz.html", db, questions=questions, rooms=rooms,
                   values=get_settings(db), cfg=quiz.quiz_config(db), modes=QUIZ_MATCH_MODES,
                   per_match=QUESTIONS_PER_MATCH, active=sum(q.is_active for q in questions))
 
@@ -763,13 +763,13 @@ def quiz_question_delete(item_id: int, request: Request, db: Session = Depends(g
     return go("/admin/quiz#questions")
 
 
-@router.post("/quiz/game/{game_id}/cancel")
-def quiz_game_cancel(game_id: int, request: Request, db: Session = Depends(get_db),
+@router.post("/quiz/room/{room_id}/cancel")
+def quiz_room_cancel(room_id: int, request: Request, db: Session = Depends(get_db),
                      _=Depends(quiz_manager)):
-    game = get_or_404(db, QuizGame, game_id)
-    if cancel_game(db, game):
+    room = get_or_404(db, QuizRoom, room_id)
+    if cancel_room(db, room):
         db.commit()
-        flash(request, f"퀴즈 대결 #{game.id}을(를) 취소했어요.")
+        flash(request, f"퀴즈 방 #{room.id}을(를) 취소했어요.")
     else:
         flash(request, "이미 끝난 대결이에요.")
     return go("/admin/quiz")

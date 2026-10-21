@@ -1,29 +1,53 @@
 {% extends "quiz/layout.html" %}
-{% block title %}퀴즈 대결 #{{ game.id }}{% endblock %}
+{% block title %}퀴즈 대결 #{{ room.id }}{% endblock %}
 {% block quiz %}
-{% set opp_name = (game.joiner_name if side == 'creator' else game.creator_name) %}
+{% set is_host = me_player and room.host_id == me.id %}
+{% macro progress_chips(players) %}
+  <div class="quiz-chips" id="chips">
+    {% for p in players %}<span class="quiz-chip" data-id="{{ p.id }}">{{ p.name }} <b>{{ p.answered }}</b>/{{ per_match }}</span>{% endfor %}
+  </div>
+{% endmacro %}
 <div class="narrow">
   <a class="more" href="/quiz">← 퀴즈 대결 목록</a>
 
 {% if phase == 'waiting' %}
   <div class="quiz-stage center">
-    <div class="quiz-spinner">⚔️</div>
-    {% if side == 'creator' %}
+    <div class="quiz-spinner">{{ '🏠' if room.mode == 'manual' else '⚔️' }}</div>
+    {% if room.mode == 'manual' %}
+      <h2>🏠 방 #{{ room.id }}{% if room.message %} · {{ room.message }}{% endif %}</h2>
+      <p class="lead"><b>{{ room.players|length }}</b> / {{ room.max_players }}명
+        {% if me_player %}· {{ '2명 이상 모이면 게임을 시작할 수 있어요.' if is_host else '방장이 시작하기를 기다리는 중이에요…' }}{% endif %}</p>
+    {% elif me_player %}
       <h2>{{ site.quiz_waiting_text }}</h2>
-      <p class="muted">{{ '다른 사람이 대결 시작을 누르면 자동으로 이어져요.' if game.mode == 'auto' else '방 목록에서 누가 들어오면 바로 시작해요.' }} 이 화면을 닫지 마세요!</p>
-      <form method="post" action="/quiz/{{ game.id }}/cancel" class="inline"><button class="btn btn-outline">기다리기 그만</button></form>
+      <p class="muted">다른 사람이 대결 시작을 누르면 자동으로 이어져요. 이 화면을 닫지 마세요!</p>
     {% else %}
-      <h2>{{ game.creator_name }}님이 상대를 기다리고 있어요</h2>
-      {% if game.mode == 'manual' %}
-        <form method="post" action="/quiz/{{ game.id }}/join" class="inline"><button class="btn btn-donate btn-lg">들어가기</button></form>
-      {% endif %}
+      <h2>{{ room.host_name }}님이 상대를 기다리고 있어요</h2>
+    {% endif %}
+  </div>
+  {% if room.mode == 'manual' %}
+    <ul class="quiz-members">
+      {% for p in room.players %}
+        <li>{{ '👑' if p.user_id == room.host_id else '🙂' }} <b>{{ p.name }}</b>{% if p is sameas me_player %} (나){% endif %}</li>
+      {% endfor %}
+      {% for _ in range(room.max_players - room.players|length) %}<li class="muted">빈자리</li>{% endfor %}
+    </ul>
+    <p class="muted center"><small>방이 꽉 차면 바로 시작해요.{% if me_player %} 이 화면을 닫으면 방에서 빠져요.{% endif %}</small></p>
+  {% endif %}
+  <div class="actions" style="justify-content:center">
+    {% if is_host and room.mode == 'manual' %}
+      <form method="post" action="/quiz/{{ room.id }}/go" class="inline"><button class="btn btn-donate btn-lg" {{ 'disabled' if room.players|length < 2 }}>▶ 게임 시작</button></form>
+    {% endif %}
+    {% if me_player %}
+      <form method="post" action="/quiz/{{ room.id }}/leave" class="inline"><button class="btn btn-outline">{{ '방 나가기' if room.mode == 'manual' else '기다리기 그만' }}</button></form>
+    {% elif room.mode == 'manual' and room.players|length < room.max_players %}
+      <form method="post" action="/quiz/{{ room.id }}/join" class="inline"><button class="btn btn-donate btn-lg">들어가기</button></form>
     {% endif %}
   </div>
 
 {% elif phase == 'countdown' %}
   <div class="quiz-stage center">
     <h2>🎉 {{ site.quiz_found_text }}</h2>
-    {% if side %}<p class="lead"><b>{{ me.name }}</b> vs <b>{{ opp_name }}</b></p>{% endif %}
+    <p class="lead">{% for p in room.players %}<b>{{ p.name }}</b>{% if not loop.last %} vs {% endif %}{% endfor %}</p>
     <div class="quiz-count" id="count">{{ starts_in|round(0, 'ceil')|int }}</div>
     <p class="muted">곧 시작해요!</p>
   </div>
@@ -32,21 +56,21 @@
   <div class="quiz-topbar">
     <span>문제 <b>{{ step + 1 }}</b> / {{ per_match }}</span>
     <span class="quiz-timer" id="timer">⏱️ --:--</span>
-    <span class="muted">{{ opp_name }}: <b id="opp">{{ opp_answered }}</b>/{{ per_match }} 풀었어요</span>
   </div>
   <div class="quiz-bar"><i id="time-bar" style="width:100%"></i></div>
+  {{ progress_chips(others) }}
   <div class="quiz-box">
     {% if question %}
       <h3 class="quiz-question">{{ question.question }}</h3>
-      <form method="post" action="/quiz/{{ game.id }}/answer" class="quiz-choices" id="answer-form">
+      <form method="post" action="/quiz/{{ room.id }}/answer" class="quiz-choices" id="answer-form">
         <input type="hidden" name="step" value="{{ step }}">
         {% for idx, text in choices %}
           <button class="quiz-choice" name="choice" value="{{ idx }}"><span>{{ loop.index }}</span>{{ text }}</button>
         {% endfor %}
       </form>
     {% else %}
-      <h3 class="quiz-question">이 문제는 관리자가 지웠어요. (두 사람 모두 점수 없음)</h3>
-      <form method="post" action="/quiz/{{ game.id }}/answer" class="quiz-choices" id="answer-form">
+      <h3 class="quiz-question">이 문제는 관리자가 지웠어요. (모두 점수 없음)</h3>
+      <form method="post" action="/quiz/{{ room.id }}/answer" class="quiz-choices" id="answer-form">
         <input type="hidden" name="step" value="{{ step }}">
         <button class="quiz-choice" name="choice" value="-1">다음 문제로 ➜</button>
       </form>
@@ -57,58 +81,60 @@
 {% elif phase == 'finished' %}
   <div class="quiz-stage center">
     <div class="quiz-spinner">⏳</div>
-    <h2>{{ site.quiz_done_wait_text if my_answered >= per_match else '⏰ 시간이 끝났어요!' }}</h2>
-    <p class="lead">{{ opp_name }}: <b id="opp">{{ opp_answered }}</b>/{{ per_match }} 풀었어요</p>
+    <h2>{{ site.quiz_done_wait_text if me_player.answered >= per_match else '⏰ 시간이 끝났어요!' }}</h2>
     <p class="quiz-timer" id="timer">⏱️ --:--</p>
   </div>
+  {{ progress_chips(others) }}
 
 {% elif phase == 'watching' %}
   <div class="quiz-stage center">
     <div class="quiz-spinner">👀</div>
-    <h2>{{ game.creator_name }} vs {{ game.joiner_name }}</h2>
-    <p class="lead">대결이 진행 중이에요. 끝나면 결과를 볼 수 있어요.</p>
+    <h2>대결이 진행 중이에요</h2>
+    <p class="lead">끝나면 결과를 볼 수 있어요.</p>
   </div>
+  {{ progress_chips(room.players) }}
 
 {% elif phase == 'cancelled' %}
-  <div class="quiz-stage center"><h2>취소된 대결이에요.</h2><a class="btn btn-primary" href="/quiz">목록으로</a></div>
+  <div class="quiz-stage center"><h2>취소되거나 없어진 대결이에요.</h2><a class="btn btn-primary" href="/quiz">목록으로</a></div>
 
 {% else %}
-  {% set my_score = game[side ~ '_score'] if side else 0 %}
   <div class="quiz-stage center">
-    {% if game.result == 'draw' %}
+    {% if room.result == 'draw' %}
       <div class="flip-box">🤝 무승부!</div>
-    {% elif side and game.result == side %}
-      <div class="flip-box flip-win">🏆 이겼어요!</div>
-    {% elif side %}
-      <div class="flip-box">😢 아쉽게 졌어요</div>
+    {% elif my_rank == 1 %}
+      <div class="flip-box flip-win">🏆 1등이에요!</div>
+    {% elif my_rank %}
+      <div class="flip-box">{{ my_rank }}등이에요! 다음엔 1등 해 봐요 💪</div>
     {% else %}
-      <div class="flip-box flip-win">🏆 {{ game.winner_name }}</div>
+      <div class="flip-box flip-win">🏆 {{ room.winner_name }}</div>
     {% endif %}
   </div>
-  <div class="quiz-result">
-    {% for who in ['creator', 'joiner'] %}
-      {% set done_at = game[who ~ '_done_at'] %}
-      <div class="quiz-result-card {{ 'quiz-me' if side == who }} {{ 'quiz-winner' if game.result == who }}">
-        <p><b>{{ game[who ~ '_name'] }}</b>{% if side == who %} (나){% endif %}{% if game.result == who %} 🏆{% endif %}</p>
-        <p class="quiz-result-score">{{ game[who ~ '_score'] }}<small>/{{ per_match }}</small></p>
-        <p class="muted"><small>
-          {% if done_at %}{% set secs = (done_at - game.starts_at).total_seconds()|int %}{{ secs // 60 }}분 {{ secs % 60 }}초 만에 다 풀었어요
-          {% else %}시간 안에 {{ game[who ~ '_answers'].split(',')|reject('equalto', '')|list|length }}문제 풀었어요{% endif %}
-        </small></p>
-      </div>
+  <ol class="quiz-ranking">
+    {% for rank, p in ranks %}
+      <li class="{{ 'quiz-me' if p is sameas me_player }} {{ 'quiz-winner' if rank == 1 and room.result == 'win' }}">
+        <span class="quiz-rank">{{ {1: '🥇', 2: '🥈', 3: '🥉'}.get(rank, rank ~ '등') }}</span>
+        <b>{{ p.name }}</b>{% if p is sameas me_player %} (나){% endif %}
+        <span class="quiz-rank-score">{{ p.score }}<small>/{{ per_match }}</small></span>
+        <small class="muted">
+          {% if p.done_at %}{% set secs = (p.done_at - room.starts_at).total_seconds()|int %}{{ secs // 60 }}분 {{ secs % 60 }}초
+          {% else %}{{ p.answered }}문제 풂{% endif %}
+        </small>
+      </li>
     {% endfor %}
-  </div>
+  </ol>
 
-  <h2 class="sub-title">📚 {{ '내가 푼 문제' if side else game.creator_name ~ '님이 푼 순서' }}</h2>
+  <h2 class="sub-title">📚 {{ '내가 푼 문제' if me_player else '이 방의 문제' }}</h2>
   <ol class="quiz-review">
     {% for q, picked in review %}
       <li>
         {% if q %}
           {% set choices = q.choice_list %}
           <b>{{ q.question }}</b>
-          {% if picked is none %}<p class="muted">⏰ 시간 안에 못 풀었어요</p>
-          {% elif picked == q.answer %}<p class="quiz-right">⭕ {{ choices[picked] }}</p>
-          {% else %}<p class="quiz-wrong">❌ {{ choices[picked] if 0 <= picked < choices|length else '—' }}</p>{% endif %}
+          {% if me_player %}
+            {% if picked is none %}<p class="muted">⏰ 시간 안에 못 풀었어요</p>
+            {% elif picked == q.answer %}<p class="quiz-right">⭕ {{ choices[picked] }}</p>
+            {% else %}<p class="quiz-wrong">❌ {{ choices[picked] if 0 <= picked < choices|length else '—' }}</p>{% endif %}
+          {% endif %}
           {% if picked != q.answer %}<p>✅ 정답: {{ choices[q.answer] if q.answer < choices|length else '' }}</p>{% endif %}
           {% if q.explanation %}<p class="muted">{{ q.explanation }}</p>{% endif %}
         {% else %}<span class="muted">지워진 문제예요</span>{% endif %}
@@ -123,23 +149,27 @@
 <script>
   (function () {
     var phase = {{ phase|tojson }};
+    var members = {{ room.players|map(attribute='id')|join(',')|tojson }};
     var loadedAt = Date.now();
     var startsIn = {{ (starts_in if starts_in is defined else 0)|tojson }} * 1000;
     var endsIn = {{ (ends_in if ends_in is defined else 0)|tojson }} * 1000;
-    var limit = {{ game.time_limit|tojson }} * 1000;
+    var limit = {{ room.time_limit|tojson }} * 1000;
     var reloading = false;
     function reload() { if (!reloading) { reloading = true; location.reload(); } }
     function left(ms) { return ms - (Date.now() - loadedAt); }
 
-    // 서버에 상태를 물어봐요. 단계가 바뀌면(상대가 왔다, 결과가 나왔다) 새로고침해요.
+    // 서버에 상태를 물어봐요. 단계가 바뀌거나(시작, 결과) 기다리는 방의 사람이 바뀌면 새로고침해요.
     setInterval(function () {
-      fetch("/quiz/{{ game.id }}/state", { headers: { "Accept": "application/json" } })
+      fetch("/quiz/{{ room.id }}/state", { headers: { "Accept": "application/json" } })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
           if (!d) return;
           if (d.phase !== phase) { reload(); return; }
-          var opp = document.getElementById("opp");
-          if (opp && d.opp_answered !== undefined) opp.textContent = d.opp_answered;
+          if (phase === "waiting" && d.players.map(function (p) { return p.id; }).join(",") !== members) { reload(); return; }
+          d.players.forEach(function (p) {
+            var chip = document.querySelector('.quiz-chip[data-id="' + p.id + '"] b');
+            if (chip) chip.textContent = p.answered;
+          });
         })
         .catch(function () {});
     }, phase === "waiting" ? 1500 : 2000);

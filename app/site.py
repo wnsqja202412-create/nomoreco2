@@ -131,13 +131,14 @@ QUIZ_FIELDS = [
     ("quiz_match_mode", "매칭 방법 (auto / manual / both)", "both", False),
     ("quiz_time_limit", "제한 시간 (초)", "120", False),
     ("quiz_countdown", "시작 전 카운트다운 (초)", "3", False),
+    ("quiz_room_max", "방 최대 인원 (2~20)", "6", False),
     ("quiz_title", "퀴즈 제목", "🧠 기후 퀴즈 대결", False),
     ("quiz_lead", "퀴즈 설명",
-     "NomoreCO2 기후 퀴즈! 두 사람이 같은 10문제를 서로 다른 순서로 풀어요. "
-     "제한 시간 안에 더 많이 맞힌 사람이 이겨요. 결과는 두 사람 모두 끝난 뒤에 함께 공개돼요.", True),
+     "NomoreCO2 기후 퀴즈! 모두 같은 10문제를 서로 다른 순서로 풀어요. "
+     "제한 시간 안에 가장 많이 맞힌 사람이 이겨요. 결과는 모두 끝난 뒤에 함께 공개돼요.", True),
     ("quiz_waiting_text", "상대를 기다릴 때 문구", "상대를 기다리는 중이에요…", False),
     ("quiz_found_text", "상대를 찾았을 때 문구", "상대를 찾았습니다!", False),
-    ("quiz_done_wait_text", "먼저 다 풀었을 때 문구", "다 풀었어요! 상대가 끝나면 결과가 함께 공개돼요.", False),
+    ("quiz_done_wait_text", "먼저 다 풀었을 때 문구", "다 풀었어요! 모두 끝나면 결과가 함께 공개돼요.", False),
 ]
 
 # 사이트 잠금 - 소유자만 '사이트 잠금'에서 바꿔요. 잠그면 소유자 말고는 아무도 못 들어와요.

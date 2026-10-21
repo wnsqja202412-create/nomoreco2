@@ -2,7 +2,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy import (Boolean, Date, DateTime, ForeignKey, Integer, LargeBinary, String,
-                        Text)
+                        Text, UniqueConstraint)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -253,41 +253,58 @@ class QuizQuestion(Base):
         return [line.strip() for line in self.choices.splitlines() if line.strip()]
 
 
-class QuizGame(Base):
-    """퀴즈 대결 한 판 - 같은 10문제를 서로 다른 순서로 풀고, 시간 안에 많이 맞힌 사람이 이겨요.
+class QuizRoom(Base):
+    """퀴즈 대결 방 - 2명 이상이 같은 10문제를 서로 다른 순서로 풀고, 시간 안에 많이 맞힌 사람이 이겨요.
 
-    waiting(상대 기다림) → playing(카운트다운 + 문제 풀기) → done(결과) / cancelled(취소)
+    waiting(사람 기다림) → playing(카운트다운 + 문제 풀기) → done(결과) / cancelled(취소)
     """
 
-    __tablename__ = "quiz_games"
+    __tablename__ = "quiz_rooms"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     mode: Mapped[str] = mapped_column(String(10), default="auto")  # auto(자동 매칭) / manual(방 만들기)
     status: Mapped[str] = mapped_column(String(20), default="waiting", index=True)
     message: Mapped[str] = mapped_column(String(100), default="")
-    creator_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
-    creator_name: Mapped[str] = mapped_column(String(50))
-    joiner_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
-    joiner_name: Mapped[str] = mapped_column(String(50), default="")
-    # 각자 푸는 문제 번호 순서 ("3,17,8,...") - 같은 10문제, 다른 순서
-    creator_questions: Mapped[str] = mapped_column(String(200))
-    joiner_questions: Mapped[str] = mapped_column(String(200), default="")
-    # 고른 보기 번호를 차례대로 ("2,0,1,...") - 길이가 곧 푼 문제 수
-    creator_answers: Mapped[str] = mapped_column(String(100), default="")
-    joiner_answers: Mapped[str] = mapped_column(String(100), default="")
-    creator_score: Mapped[int] = mapped_column(Integer, default=0)
-    joiner_score: Mapped[int] = mapped_column(Integer, default=0)
-    creator_done_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    joiner_done_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    # 기다리는 사람이 아직 화면을 보고 있는지 (안 보고 있으면 매칭하지 않아요)
-    creator_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    host_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    host_name: Mapped[str] = mapped_column(String(50), default="")
+    questions: Mapped[str] = mapped_column(String(200), default="")  # 이 방의 10문제 ("3,17,8,...")
+    max_players: Mapped[int] = mapped_column(Integer, default=2)
     time_limit: Mapped[int] = mapped_column(Integer, default=120)  # 초
     starts_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     ends_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    result: Mapped[str] = mapped_column(String(10), default="")  # creator / joiner / draw
-    winner_name: Mapped[str] = mapped_column(String(50), default="")
+    result: Mapped[str] = mapped_column(String(10), default="")  # win / draw
+    winner_name: Mapped[str] = mapped_column(String(300), default="")  # 1등(들) 이름
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_kst)
     finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    players: Mapped[list["QuizPlayer"]] = relationship(
+        back_populates="room", cascade="all, delete-orphan", order_by="QuizPlayer.id"
+    )
+
+
+class QuizPlayer(Base):
+    """퀴즈 방에 들어온 한 사람"""
+
+    __tablename__ = "quiz_players"
+    __table_args__ = (UniqueConstraint("room_id", "user_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    room_id: Mapped[int] = mapped_column(ForeignKey("quiz_rooms.id"), index=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    name: Mapped[str] = mapped_column(String(50))
+    questions: Mapped[str] = mapped_column(String(200), default="")  # 내가 푸는 순서 (시작할 때 섞어요)
+    answers: Mapped[str] = mapped_column(String(100), default="")  # 고른 보기 번호 ("2,0,1,...")
+    score: Mapped[int] = mapped_column(Integer, default=0)
+    done_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    # 기다리는 동안 화면을 보고 있는지 (오래 소식이 없으면 방에서 빠져요)
+    seen_at: Mapped[datetime] = mapped_column(DateTime, default=now_kst)
+    joined_at: Mapped[datetime] = mapped_column(DateTime, default=now_kst)
+
+    room: Mapped[QuizRoom] = relationship(back_populates="players")
+
+    @property
+    def answered(self) -> int:
+        return len([x for x in self.answers.split(",") if x])
 
 
 class BankAccount(Base):
