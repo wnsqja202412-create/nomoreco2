@@ -253,32 +253,40 @@ class QuizQuestion(Base):
         return [line.strip() for line in self.choices.splitlines() if line.strip()]
 
 
-class QuizMatch(Base):
-    """퀴즈 대결 한 판 - 같은 10문제를 서로 다른 순서로 풀고, 10문제를 먼저 다 맞히면 이겨요."""
+class QuizGame(Base):
+    """퀴즈 대결 한 판 - 같은 10문제를 서로 다른 순서로 풀고, 시간 안에 많이 맞힌 사람이 이겨요.
 
-    __tablename__ = "quiz_matches"
+    waiting(상대 기다림) → playing(카운트다운 + 문제 풀기) → done(결과) / cancelled(취소)
+    """
+
+    __tablename__ = "quiz_games"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    mode: Mapped[str] = mapped_column(String(10), default="auto")  # auto(자동 매칭) / manual(방 만들기)
+    status: Mapped[str] = mapped_column(String(20), default="waiting", index=True)
+    message: Mapped[str] = mapped_column(String(100), default="")
     creator_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     creator_name: Mapped[str] = mapped_column(String(50))
     joiner_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     joiner_name: Mapped[str] = mapped_column(String(50), default="")
-    winner_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
-    winner_name: Mapped[str] = mapped_column(String(50), default="")
-    message: Mapped[str] = mapped_column(String(100), default="")
     # 각자 푸는 문제 번호 순서 ("3,17,8,...") - 같은 10문제, 다른 순서
     creator_questions: Mapped[str] = mapped_column(String(200))
     joiner_questions: Mapped[str] = mapped_column(String(200), default="")
-    creator_progress: Mapped[int] = mapped_column(Integer, default=0)  # 맞힌 문제 수
-    joiner_progress: Mapped[int] = mapped_column(Integer, default=0)
-    creator_wrong: Mapped[int] = mapped_column(Integer, default=0)  # 틀린 횟수
-    joiner_wrong: Mapped[int] = mapped_column(Integer, default=0)
-    creator_wait_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    joiner_wait_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    end_reason: Mapped[str] = mapped_column(String(20), default="")  # solved / forfeit
-    status: Mapped[str] = mapped_column(String(20), default="open", index=True)  # open/playing/done/cancelled
+    # 고른 보기 번호를 차례대로 ("2,0,1,...") - 길이가 곧 푼 문제 수
+    creator_answers: Mapped[str] = mapped_column(String(100), default="")
+    joiner_answers: Mapped[str] = mapped_column(String(100), default="")
+    creator_score: Mapped[int] = mapped_column(Integer, default=0)
+    joiner_score: Mapped[int] = mapped_column(Integer, default=0)
+    creator_done_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    joiner_done_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    # 기다리는 사람이 아직 화면을 보고 있는지 (안 보고 있으면 매칭하지 않아요)
+    creator_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    time_limit: Mapped[int] = mapped_column(Integer, default=120)  # 초
+    starts_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    ends_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    result: Mapped[str] = mapped_column(String(10), default="")  # creator / joiner / draw
+    winner_name: Mapped[str] = mapped_column(String(50), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_kst)
-    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
 

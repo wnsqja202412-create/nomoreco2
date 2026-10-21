@@ -16,14 +16,14 @@ from ..database import get_db
 from ..images import delete_image_url, photo_upload, resolve_image
 from ..models import (APPLICATION_STATUSES, CATEGORIES, DONATION_STATUSES, INQUIRY_STATUSES,
                       Application, BankAccount, BoardPost, Coinflip, Comment, Donation, Image,
-                      Inquiry, InquiryMessage, MoneyLog, Post, QuizMatch, QuizQuestion,
+                      Inquiry, InquiryMessage, MoneyLog, Post, QuizGame, QuizQuestion,
                       Recruitment, User, Wallet, now_kst)
 from ..site import (DONATE_FIELDS, LOCK_FIELDS, LOCK_MODES, PLAYGROUND_FIELDS, QUIZ_FIELDS,
-                    SETTING_FIELDS, SETTING_GROUPS, get_settings, lock_mode, save_settings)
+                    QUIZ_MATCH_MODES, SETTING_FIELDS, SETTING_GROUPS, get_settings, lock_mode, save_settings)
 from ..templating import flash, render
 from .playground import cancel_flip
 from . import quiz
-from .quiz import QUESTIONS_PER_MATCH, cancel_match
+from .quiz import QUESTIONS_PER_MATCH, cancel_game
 
 router = APIRouter(prefix="/admin", dependencies=[Depends(require_permission("admin_access"))])
 content_editor = require_permission("content_edit")
@@ -653,18 +653,23 @@ def playground_cancel_flip(flip_id: int, request: Request, db: Session = Depends
 @router.get("/quiz")
 def quiz_admin(request: Request, db: Session = Depends(get_db), _=Depends(quiz_manager)):
     questions = db.query(QuizQuestion).order_by(QuizQuestion.id).all()
-    matches = (db.query(QuizMatch).filter(QuizMatch.status.in_(["open", "playing"]))
-               .order_by(QuizMatch.id.desc()).all())
-    return render(request, "admin/quiz.html", db, questions=questions, matches=matches,
-                  fields=QUIZ_FIELDS, values=get_settings(db), per_match=QUESTIONS_PER_MATCH,
-                  active=sum(q.is_active for q in questions))
+    games = (db.query(QuizGame).filter(QuizGame.status.in_(["waiting", "playing"]))
+             .order_by(QuizGame.id.desc()).all())
+    return render(request, "admin/quiz.html", db, questions=questions, games=games,
+                  values=get_settings(db), cfg=quiz.quiz_config(db), modes=QUIZ_MATCH_MODES,
+                  per_match=QUESTIONS_PER_MATCH, active=sum(q.is_active for q in questions))
 
 
 @router.post("/quiz/settings")
 async def quiz_settings(request: Request, db: Session = Depends(get_db),
                         _=Depends(quiz_manager)):
-    save_settings(db, QUIZ_FIELDS, await request.form())
-    flash(request, "퀴즈 설정을 저장했어요.")
+    form = dict(await request.form())
+    if form.get("quiz_match_mode") not in QUIZ_MATCH_MODES:
+        form.pop("quiz_match_mode", None)
+    save_settings(db, QUIZ_FIELDS, form)
+    cfg = quiz.quiz_config(db)
+    flash(request, f"퀴즈 설정을 저장했어요. (매칭: {QUIZ_MATCH_MODES[cfg['mode']]}, "
+          f"제한 시간 {cfg['time_limit']}초, 카운트다운 {cfg['countdown']}초 · 새 대결부터 적용돼요)")
     return go("/admin/quiz")
 
 
@@ -758,13 +763,13 @@ def quiz_question_delete(item_id: int, request: Request, db: Session = Depends(g
     return go("/admin/quiz#questions")
 
 
-@router.post("/quiz/match/{match_id}/cancel")
-def quiz_match_cancel(match_id: int, request: Request, db: Session = Depends(get_db),
-                      _=Depends(quiz_manager)):
-    match = get_or_404(db, QuizMatch, match_id)
-    if cancel_match(db, match):
+@router.post("/quiz/game/{game_id}/cancel")
+def quiz_game_cancel(game_id: int, request: Request, db: Session = Depends(get_db),
+                     _=Depends(quiz_manager)):
+    game = get_or_404(db, QuizGame, game_id)
+    if cancel_game(db, game):
         db.commit()
-        flash(request, f"퀴즈 대결 #{match.id}을(를) 취소했어요.")
+        flash(request, f"퀴즈 대결 #{game.id}을(를) 취소했어요.")
     else:
         flash(request, "이미 끝난 대결이에요.")
     return go("/admin/quiz")

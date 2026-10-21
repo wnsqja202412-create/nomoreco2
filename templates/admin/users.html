@@ -54,9 +54,9 @@
               {% else %}
                 <form method="post" action="/admin/users/{{ u.id }}/timeout" class="form">
                   <label class="field">타임아웃 시간 (최대 365일)
-                    <span style="display:flex;gap:6px">
-                      <input type="number" name="amount" min="1" step="1" value="1" required style="flex:1;min-width:0">
-                      <select name="unit">{% for label in timeout_units %}<option value="{{ label }}" {{ 'selected' if label == '시간' }}>{{ label }}</option>{% endfor %}</select>
+                    <span style="display:flex;gap:6px;align-items:center">
+                      <input type="number" name="amount" min="1" step="1" value="1" required style="width:90px;flex:none">
+                      <select name="unit" style="width:auto;flex:none">{% for label in timeout_units %}<option value="{{ label }}" {{ 'selected' if label == '시간' }}>{{ label }}</option>{% endfor %}</select>
                     </span>
                   </label>
                   <label class="field">사유 (회원에게 보여요)<input name="reason" maxlength="300"></label>

@@ -12,27 +12,41 @@
   <div class="form-grid">
     <label class="field">퀴즈 대결
       <select name="quiz_enabled">
-        <option value="1" {{ 'selected' if values.quiz_enabled.strip() != '0' }}>열기</option>
-        <option value="0" {{ 'selected' if values.quiz_enabled.strip() == '0' }}>닫기 — 메뉴에서 숨기고 새 대결을 못 만들어요 (하던 대결은 끝까지 해요)</option>
+        <option value="1" {{ 'selected' if cfg.open }}>열기</option>
+        <option value="0" {{ 'selected' if not cfg.open }}>닫기 — 메뉴에서 숨기고 새 대결을 못 해요 (하던 대결은 끝까지 해요)</option>
       </select>
     </label>
-    <label class="field">틀렸을 때 기다리는 시간 (초, 0~30)<input type="number" name="quiz_wrong_wait" min="0" max="30" value="{{ values.quiz_wrong_wait }}"></label>
+    <label class="field">매칭 방법
+      <select name="quiz_match_mode">
+        {% for key, label in modes.items() %}<option value="{{ key }}" {{ 'selected' if cfg.mode == key }}>{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="field">제한 시간 (초, 10~3600 · 120초 = 2분)<input type="number" name="quiz_time_limit" min="10" max="3600" value="{{ cfg.time_limit }}"></label>
+    <label class="field">시작 전 카운트다운 (초, 0~30)<input type="number" name="quiz_countdown" min="0" max="30" value="{{ cfg.countdown }}"></label>
   </div>
+  <p class="muted"><b>자동 매칭</b>: '대결 시작'을 누른 사람끼리 자동으로 이어져요. <b>수동 매칭</b>: 방을 만들면 목록에 올라가고, 다른 사람이 골라서 들어가요. 바꾼 시간은 새로 시작하는 대결부터 적용돼요.</p>
+  <h3>문구</h3>
   <label class="field">퀴즈 제목<input name="quiz_title" maxlength="100" value="{{ values.quiz_title }}"></label>
   <label class="field">퀴즈 설명<textarea name="quiz_lead" rows="3">{{ values.quiz_lead }}</textarea></label>
+  <div class="form-grid">
+    <label class="field">상대를 기다릴 때<input name="quiz_waiting_text" maxlength="100" value="{{ values.quiz_waiting_text }}"></label>
+    <label class="field">상대를 찾았을 때<input name="quiz_found_text" maxlength="100" value="{{ values.quiz_found_text }}"></label>
+  </div>
+  <label class="field">먼저 다 풀었을 때<input name="quiz_done_wait_text" maxlength="150" value="{{ values.quiz_done_wait_text }}"></label>
   <div><button class="btn btn-primary">설정 저장</button></div>
 </form>
 
 <h2 class="sub-title">기다리는·진행 중인 대결</h2>
 <div class="table-wrap"><table class="table">
-  <tr><th>번호</th><th>대결</th><th>상태</th><th>맞힌 문제</th><th></th></tr>
-  {% for m in matches %}
-    <tr><td><a href="/quiz/{{ m.id }}">#{{ m.id }}</a></td>
-      <td>{{ m.creator_name }} vs {{ m.joiner_name or '???' }}</td>
-      <td>{{ '기다리는 중' if m.status == 'open' else '진행 중' }}</td>
-      <td>{{ m.creator_progress }} : {{ m.joiner_progress }}</td>
-      <td><form method="post" action="/admin/quiz/match/{{ m.id }}/cancel" class="inline" onsubmit="return confirm('대결을 취소할까요?')"><button class="btn btn-sm btn-danger">취소</button></form></td></tr>
-  {% else %}<tr><td colspan="5" class="muted">없어요</td></tr>{% endfor %}
+  <tr><th>번호</th><th>방식</th><th>대결</th><th>상태</th><th>푼 문제</th><th></th></tr>
+  {% for g in games %}
+    <tr><td><a href="/quiz/{{ g.id }}">#{{ g.id }}</a></td>
+      <td>{{ '자동' if g.mode == 'auto' else '방' }}</td>
+      <td>{{ g.creator_name }} vs {{ g.joiner_name or '???' }}</td>
+      <td>{{ '기다리는 중' if g.status == 'waiting' else '진행 중' }}</td>
+      <td>{{ g.creator_answers.split(',')|reject('equalto', '')|list|length }} : {{ g.joiner_answers.split(',')|reject('equalto', '')|list|length }}</td>
+      <td><form method="post" action="/admin/quiz/game/{{ g.id }}/cancel" class="inline" onsubmit="return confirm('대결을 취소할까요?')"><button class="btn btn-sm btn-danger">취소</button></form></td></tr>
+  {% else %}<tr><td colspan="6" class="muted">없어요</td></tr>{% endfor %}
 </table></div>
 
 <div class="section-head" id="questions" style="margin-top:32px">

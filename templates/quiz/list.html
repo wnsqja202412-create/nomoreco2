@@ -1,62 +1,72 @@
 {% extends "quiz/layout.html" %}
 {% block title %}기후 퀴즈{% endblock %}
 {% block quiz %}
-{% if not is_open %}
-  <div class="error">퀴즈 대결이 지금 닫혀 있어요. 하던 대결은 끝까지 할 수 있어요.</div>
+{% set auto_ok = cfg.mode in ('auto', 'both') %}
+{% set manual_ok = cfg.mode in ('manual', 'both') %}
+
+<ul class="quiz-rules">
+  <li>🎯 50문제 중 <b>{{ per_match }}문제</b>가 무작위로 나와요. 두 사람의 문제는 같지만 <b>순서는 달라요</b>.</li>
+  <li>⏱️ 제한 시간은 <b>{{ cfg.time_limit // 60 }}분{% if cfg.time_limit % 60 %} {{ cfg.time_limit % 60 }}초{% endif %}</b>. 문제마다 한 번씩만 답할 수 있어요.</li>
+  <li>🏆 <b>더 많이 맞힌 사람</b>이 이겨요. 결과는 두 사람 모두 끝난 뒤에 함께 공개돼요.</li>
+</ul>
+
+{% set playing_now = active and active.status == 'playing' %}
+{% if active and not playing_now %}
+  <div class="notice-box">⏳ 상대를 기다리던 대결이 있어요. <a class="btn btn-sm btn-outline" href="/quiz/{{ active.id }}">기다리기로 돌아가기</a> <small class="muted">(다른 방법으로 시작하면 기다리던 대결은 취소돼요)</small></div>
+{% endif %}
+{% if playing_now %}
+  <div class="notice-box">⚔️ 하고 있는 대결이 있어요. <a class="btn btn-sm btn-donate" href="/quiz/{{ active.id }}">대결로 돌아가기</a></div>
+{% elif not cfg.open %}
+  <div class="error">퀴즈 대결이 지금 닫혀 있어요.</div>
 {% elif not enough %}
-  <div class="error">문제가 아직 {{ per_match }}개보다 적어서 대결을 만들 수 없어요.</div>
+  <div class="error">문제가 아직 {{ per_match }}개보다 적어서 대결을 할 수 없어요.</div>
 {% else %}
-  <form method="post" action="/quiz/new" class="quiz-start" onsubmit="var b=this.querySelector('button');if(b.disabled)return false;b.disabled=true;">
-    <label class="field">한마디 (선택)<input name="message" maxlength="100" placeholder="예: 기후 박사 나와라!"></label>
-    <button class="btn btn-donate btn-lg">⚔️ 대결 시작</button>
-  </form>
+  <div class="quiz-start">
+    {% if auto_ok %}
+      <form method="post" action="/quiz/start" class="quiz-start-auto" onsubmit="var b=this.querySelector('button');if(b.disabled)return false;b.disabled=true;">
+        <button class="btn btn-donate btn-lg">⚔️ 대결 시작</button>
+        <small class="muted">누르면 자동으로 상대를 찾아 줘요</small>
+      </form>
+    {% endif %}
+    {% if manual_ok %}
+      <form method="post" action="/quiz/room" class="quiz-start-room" onsubmit="var b=this.querySelector('button');if(b.disabled)return false;b.disabled=true;">
+        <label class="field">방 이름·한마디 (선택)<input name="message" maxlength="100" placeholder="예: 기후 박사 나와라!"></label>
+        <button class="btn {{ 'btn-outline' if auto_ok else 'btn-donate' }}">🏠 방 만들기</button>
+      </form>
+    {% endif %}
+  </div>
 {% endif %}
 
-<h2 class="sub-title">상대를 기다리는 대결</h2>
+{% if manual_ok %}
+<h2 class="sub-title">들어갈 수 있는 방</h2>
 <div class="flip-grid">
-  {% for m in open_matches %}
-    <div class="flip-card quiz-card {{ 'flip-mine' if m.creator_id == me.id }}" onclick="if(!event.target.closest('form,a'))location.href='/quiz/{{ m.id }}'">
-      <p class="flip-bet">⚔️ #{{ m.id }}</p>
-      <p><b>{{ m.creator_name }}</b>{% if m.creator_id == me.id %} (나){% endif %}</p>
-      {% if m.message %}<p class="flip-msg">“{{ m.message }}”</p>{% endif %}
+  {% for g in rooms %}
+    <div class="flip-card {{ 'flip-mine' if g.creator_id == me.id }}">
+      <p class="flip-bet">🏠 #{{ g.id }}</p>
+      <p><b>{{ g.creator_name }}</b>{% if g.creator_id == me.id %} (나){% endif %}</p>
+      {% if g.message %}<p class="flip-msg">“{{ g.message }}”</p>{% endif %}
       <div class="actions">
-        {% if m.creator_id == me.id %}
-          <a class="btn btn-sm btn-outline" href="/quiz/{{ m.id }}">기다리는 중…</a>
-          <form method="post" action="/quiz/{{ m.id }}/cancel" class="inline" onsubmit="return confirm('대결을 취소할까요?')">
-            <button class="btn btn-sm btn-danger">취소</button>
-          </form>
-        {% elif is_open %}
-          <form method="post" action="/quiz/{{ m.id }}/join" class="inline">
-            <button class="btn btn-sm btn-donate">대결 들어가기</button>
-          </form>
+        {% if g.creator_id == me.id %}
+          <a class="btn btn-sm btn-outline" href="/quiz/{{ g.id }}">기다리는 중…</a>
+        {% elif cfg.open and not playing_now %}
+          <form method="post" action="/quiz/{{ g.id }}/join" class="inline"><button class="btn btn-sm btn-donate">들어가기</button></form>
         {% endif %}
       </div>
     </div>
   {% else %}
-    <p class="muted">지금 기다리는 대결이 없어요. ⚔️ 대결 시작을 눌러 만들어 보세요!</p>
+    <p class="muted">지금 열린 방이 없어요.{% if cfg.open %} 🏠 방 만들기로 하나 만들어 보세요!{% endif %}</p>
   {% endfor %}
 </div>
-
-{% if playing %}
-<h2 class="sub-title">진행 중인 대결</h2>
-<div class="table-wrap"><table class="table">
-  <tr><th>대결</th><th>맞힌 문제</th><th></th></tr>
-  {% for m in playing %}
-    {% set mine = me.id in (m.creator_id, m.joiner_id) %}
-    <tr><td>{{ m.creator_name }} vs {{ m.joiner_name }}</td>
-      <td>{{ m.creator_progress }} : {{ m.joiner_progress }}</td>
-      <td><a class="btn btn-sm {{ 'btn-donate' if mine else 'btn-outline' }}" href="/quiz/{{ m.id }}">{{ '이어서 풀기' if mine else '구경하기' }}</a></td></tr>
-  {% endfor %}
-</table></div>
 {% endif %}
 
 <h2 class="sub-title">최근 결과</h2>
 <div class="table-wrap"><table class="table">
-  <tr><th>대결</th><th>이긴 사람</th><th>시간</th></tr>
-  {% for m in recent %}
-    <tr><td><a href="/quiz/{{ m.id }}">{{ m.creator_name }} vs {{ m.joiner_name }}</a></td>
-      <td>🏆 {{ m.winner_name or '—' }}{% if m.end_reason == 'forfeit' %} <small class="muted">(상대 포기)</small>{% endif %}</td>
-      <td>{{ m.finished_at|datetimefmt }}</td></tr>
-  {% else %}<tr><td colspan="3" class="muted">아직 없어요</td></tr>{% endfor %}
+  <tr><th>대결</th><th>점수</th><th>결과</th><th>시간</th></tr>
+  {% for g in recent %}
+    <tr><td><a href="/quiz/{{ g.id }}">{{ g.creator_name }} vs {{ g.joiner_name }}</a></td>
+      <td>{{ g.creator_score }} : {{ g.joiner_score }}</td>
+      <td>{% if g.result == 'draw' %}🤝 무승부{% else %}🏆 {{ g.winner_name }}{% endif %}</td>
+      <td>{{ g.finished_at|datetimefmt }}</td></tr>
+  {% else %}<tr><td colspan="4" class="muted">아직 없어요</td></tr>{% endfor %}
 </table></div>
 {% endblock %}

@@ -124,13 +124,20 @@ PLAYGROUND_FIELDS = [
 ]
 
 # 기후 퀴즈 설정 - 총관리자 이상이 '퀴즈 관리'에서 바꿔요.
+QUIZ_MATCH_MODES = {"auto": "자동 매칭만", "manual": "수동 매칭(방 만들기)만",
+                    "both": "자동 + 수동 둘 다"}
 QUIZ_FIELDS = [
     ("quiz_enabled", "퀴즈 대결 열기 (1 = 열기, 0 = 닫기)", "1", False),
+    ("quiz_match_mode", "매칭 방법 (auto / manual / both)", "both", False),
+    ("quiz_time_limit", "제한 시간 (초)", "120", False),
+    ("quiz_countdown", "시작 전 카운트다운 (초)", "3", False),
     ("quiz_title", "퀴즈 제목", "🧠 기후 퀴즈 대결", False),
     ("quiz_lead", "퀴즈 설명",
-     "NomoreCO2 기후 퀴즈! 50문제 중 10문제가 나와요. 같은 문제를 서로 다른 순서로 풀고, "
-     "10문제를 먼저 다 맞히는 사람이 이겨요.", True),
-    ("quiz_wrong_wait", "틀렸을 때 기다리는 시간 (초)", "3", False),
+     "NomoreCO2 기후 퀴즈! 두 사람이 같은 10문제를 서로 다른 순서로 풀어요. "
+     "제한 시간 안에 더 많이 맞힌 사람이 이겨요. 결과는 두 사람 모두 끝난 뒤에 함께 공개돼요.", True),
+    ("quiz_waiting_text", "상대를 기다릴 때 문구", "상대를 기다리는 중이에요…", False),
+    ("quiz_found_text", "상대를 찾았을 때 문구", "상대를 찾았습니다!", False),
+    ("quiz_done_wait_text", "먼저 다 풀었을 때 문구", "다 풀었어요! 상대가 끝나면 결과가 함께 공개돼요.", False),
 ]
 
 # 사이트 잠금 - 소유자만 '사이트 잠금'에서 바꿔요. 잠그면 소유자 말고는 아무도 못 들어와요.
