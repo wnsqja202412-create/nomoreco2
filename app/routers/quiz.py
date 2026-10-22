@@ -30,6 +30,7 @@ quizzer = require_permission("quiz")
 QUESTIONS_PER_MATCH = 10
 MAX_MESSAGE = 100
 STALE_SECONDS = 15   # 기다리는 화면이 이만큼 소식이 없으면 자리를 비운 걸로 보고 방에서 빼요.
+TOUCH_EVERY = 5      # '아직 보고 있어요' 기록은 이만큼마다 한 번만 DB에 써요.
 ANSWER_GRACE = 3     # 시간이 막 끝날 때 보낸 답은 조금 봐줘요. (인터넷이 느릴 수 있어서)
 _rng = secrets.SystemRandom()
 
@@ -269,9 +270,15 @@ def _phase(room: QuizRoom, me: QuizPlayer | None) -> str:
 
 
 def _touch(db: Session, room: QuizRoom, me: QuizPlayer | None) -> None:
-    """기다리는 동안 '아직 보고 있어요' 하고 알려요."""
-    if room.status == "waiting" and me is not None:
-        me.seen_at = now_kst()
+    """기다리는 동안 '아직 보고 있어요' 하고 알려요.
+
+    DB에 쓰는 건 느려서 5초에 한 번만 써요. (화면은 1.5초마다 물어봐요)
+    저장하면 읽어 둔 내용이 지워져서, 화면에 쓸 내용을 다 만든 '뒤에' 불러 주세요.
+    """
+    now = now_kst()
+    if room.status == "waiting" and me is not None and me.seen_at < now - timedelta(seconds=TOUCH_EVERY):
+        db.query(QuizPlayer).filter(QuizPlayer.id == me.id).update({"seen_at": now},
+                                                                   synchronize_session=False)
         db.commit()
 
 
@@ -397,7 +404,6 @@ def quiz_detail(room_id: int, request: Request, db: Session = Depends(get_db),
     settle(db, room)
     prune(db, room)
     me = _me(room, user.id)
-    _touch(db, room, me)
     now, phase = now_kst(), _phase(room, me)
     context = dict(room=room, me_player=me, phase=phase, per_match=QUESTIONS_PER_MATCH,
                    cfg=quiz_config(db), others=[p for p in room.players if p is not me])
@@ -418,7 +424,9 @@ def quiz_detail(room_id: int, request: Request, db: Session = Depends(get_db),
         found = {q.id: q for q in db.query(QuizQuestion).filter(QuizQuestion.id.in_(order))}
         context["review"] = [(found.get(qid), picked[i] if i < len(picked) else None)
                              for i, qid in enumerate(order)]
-    return render(request, "quiz/detail.html", db, me=user, **context)
+    response = render(request, "quiz/detail.html", db, me=user, **context)
+    _touch(db, room, me)
+    return response
 
 
 @router.get("/{room_id}/state")
@@ -428,12 +436,11 @@ def quiz_state(room_id: int, db: Session = Depends(get_db), user: User = Depends
     settle(db, room)
     prune(db, room)
     me = _me(room, user.id)
+    data = {"phase": _phase(room, me),
+            "players": [{"id": p.id, "name": p.name, "answered": p.answered} for p in room.players],
+            "host": room.host_name}
     _touch(db, room, me)
-    return JSONResponse({
-        "phase": _phase(room, me),
-        "players": [{"id": p.id, "name": p.name, "answered": p.answered} for p in room.players],
-        "host": room.host_name,
-    })
+    return JSONResponse(data)
 
 
 @router.post("/{room_id}/answer")
